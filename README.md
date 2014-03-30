@@ -14,6 +14,8 @@ It relies on ffmpeg and ffprobe be available in the path and they must have been
 
 That's the base functionality that I wanted for it for my personal use, but I'll be super happy to accept PullRequest contributions (specially on the GUI part) to allow it to be a bit more flexible. E.g.: save to a different folder, checkbox to delete or not the original, some base quality settings to adjust MAX and DEFAULT bitrates.
 
+To know how to compile FFMPEG with the non-free bits x264 and libfdk_aac please check here: https://trac.ffmpeg.org/wiki/CompilationGuide
+
 
 Developed by budius:
 ====================
