@@ -1,8 +1,5 @@
 package com.budius.chromecast.converter;
 
-import com.budius.chromecast.converter.ffprobe_model.Probe;
-import org.apache.commons.io.FilenameUtils;
-
 import java.io.File;
 import java.util.Arrays;
 
@@ -12,14 +9,14 @@ import java.util.Arrays;
  */
 public class FFMpeg implements Runnable {
 
-    private final File folder;
-    private final File inputFile;
+    private final SingleConversionSetting conversionSetting;
     private final FFMpegBuilder builder;
+    private final File runtimeFolder;
 
-    public FFMpeg(File f, Probe p) {
-        inputFile = f;
-        folder = inputFile.getParentFile();
-        builder = new FFMpegBuilder(inputFile, p);
+    public FFMpeg(SingleConversionSetting scs) {
+        conversionSetting = scs;
+        builder = new FFMpegBuilder(scs);
+        runtimeFolder = conversionSetting.getOriginalVideoFile().getParentFile();
     }
 
     @Override
@@ -28,41 +25,43 @@ public class FFMpeg implements Runnable {
         int type = builder.getType();
 
         if (type == FFMpegBuilder.TYPE_NO_GOOD) {
-            Log.d("Cannot understand file " + inputFile.getAbsolutePath());
-            Log.fileLog("Cannot understand file " + inputFile.getAbsolutePath());
+            Log.d("Cannot understand file " + conversionSetting.getOriginalVideoFile().getAbsolutePath());
+            Log.fileLog("Cannot understand file " + conversionSetting.getOriginalVideoFile().getAbsolutePath());
         } else if (type == FFMpegBuilder.TYPE_NO_CHANGE) {
-            Log.d("No need to change " + inputFile.getAbsolutePath());
-            Log.fileLog("No need to change " + inputFile.getAbsolutePath());
+            Log.d("No need to change " + conversionSetting.getOriginalVideoFile().getAbsolutePath());
+            Log.fileLog("No need to change " + conversionSetting.getOriginalVideoFile().getAbsolutePath());
         } else if (convertVideo(type)) {
             generateSubtitle();
-            File outputFile = builder.getGeneratedFile();
+            File outputFile = conversionSetting.getTempVideoFile();
 
             if (!outputFile.exists() || outputFile.length() == 0) {
                 if (outputFile.exists())
                     outputFile.delete();
                 Log.d("Fail!");
-                Log.fileLog("Failed to convert " + inputFile.getAbsolutePath());
+                Log.fileLog("Failed to convert " + conversionSetting.getOriginalVideoFile().getAbsolutePath());
             } else {
                 try {
-                    if (inputFile.delete()) {
-                        File newName = getMp4Filename();
-                        if (!outputFile.renameTo(newName)) {
-                            Log.d("Fail to rename file " + outputFile.getAbsolutePath() + " to " + newName.getAbsolutePath());
-                            Log.fileLog("Fail to rename file " + outputFile.getAbsolutePath() + " to " + newName.getAbsolutePath());
+                    if (conversionSetting.deleteOriginalFileOnSuccessfulConversion()) {
+                        if (!conversionSetting.getOriginalVideoFile().delete()) {
+                            Log.d("Fail to delete file");
+                            Log.fileLog("Fail to delete file " + conversionSetting.getOriginalVideoFile().getAbsolutePath());
                         }
-                    } else {
-                        Log.d("Fail to delete file");
-                        Log.fileLog("Fail to delete file " + inputFile.getAbsolutePath());
                     }
+                    File newName = conversionSetting.getOutputVideoFile();
+                    if (!outputFile.renameTo(newName)) {
+                        Log.d("Fail to rename file " + outputFile.getAbsolutePath() + " to " + newName.getAbsolutePath());
+                        Log.fileLog("Fail to rename file " + outputFile.getAbsolutePath() + " to " + newName.getAbsolutePath());
+                    }
+
                 } catch (Exception e) {
                     Log.d("Fail to delete-rename file");
-                    Log.fileLog("Fail to delete-rename file " + inputFile.getAbsolutePath());
+                    Log.fileLog("Fail to delete-rename file " + conversionSetting.getOriginalVideoFile().getAbsolutePath());
                 }
             }
             Log.d("Complete!");
         } else {
             Log.d("Fail!");
-            Log.fileLog("Failed to convert " + inputFile.getAbsolutePath());
+            Log.fileLog("Failed to convert " + conversionSetting.getOriginalVideoFile().getAbsolutePath());
         }
     }
 
@@ -75,11 +74,11 @@ public class FFMpeg implements Runnable {
         switch (type) {
             case FFMpegBuilder.TYPE_CONVERT_ONLY_AUDIO:
             case FFMpegBuilder.TYPE_JUST_CHANGE_CONTAINER:
-                Log.d("Starting single pass for file: " + inputFile.getAbsolutePath());
+                Log.d("Starting single pass for file: " + conversionSetting.getOriginalVideoFile().getAbsolutePath());
                 cmd = builder.getSinglePass();
                 if (cmd != null) {
                     logCmd(cmd);
-                    rt = new RuntimeExec(cmd, folder, RuntimeExec.VERBOSE);
+                    rt = new RuntimeExec(cmd, runtimeFolder, RuntimeExec.VERBOSE);
                     if (rt.execute()) {
                         Log.d("Completed in " + ((System.currentTimeMillis() - startTime) / 1000) + " seconds");
                         return true;
@@ -87,18 +86,18 @@ public class FFMpeg implements Runnable {
                 }
                 break;
             case FFMpegBuilder.TYPE_TWO_PASS:
-                Log.d("Starting first pass for file: " + inputFile.getAbsolutePath());
+                Log.d("Starting first pass for file: " + conversionSetting.getOriginalVideoFile().getAbsolutePath());
                 cmd = builder.getFirstPass();
                 if (cmd != null) {
                     logCmd(cmd);
-                    rt = new RuntimeExec(cmd, folder, RuntimeExec.VERBOSE);
+                    rt = new RuntimeExec(cmd, runtimeFolder, RuntimeExec.VERBOSE);
                     if (rt.execute()) {
                         Log.d("First pass completed in " + ((System.currentTimeMillis() - startTime) / 1000) + " seconds");
                         startTime = System.currentTimeMillis();
                         cmd = builder.getSecondPass();
                         if (cmd != null) {
                             logCmd(cmd);
-                            rt = new RuntimeExec(cmd, folder, RuntimeExec.VERBOSE);
+                            rt = new RuntimeExec(cmd, runtimeFolder, RuntimeExec.VERBOSE);
                             if (rt.execute()) {
                                 Log.d("Second pass completed in " + ((System.currentTimeMillis() - startTime) / 1000) + " seconds");
                                 return true;
@@ -108,7 +107,7 @@ public class FFMpeg implements Runnable {
                 }
                 break;
         }
-        Log.e("Fail to convert " + inputFile.getAbsolutePath());
+        Log.e("Fail to convert " + conversionSetting.getOriginalVideoFile().getAbsolutePath());
         return false;
     }
 
@@ -116,10 +115,10 @@ public class FFMpeg implements Runnable {
         int numberOfSubs = builder.getNumberOfSubtitles();
         if (numberOfSubs > 0) {
             RuntimeExec rt;
-            Log.d("Generating subtitles for: " + inputFile.getAbsolutePath());
+            Log.d("Generating subtitles for: " + conversionSetting.getOriginalVideoFile().getAbsolutePath());
             for (int i = 0; i < numberOfSubs; i++) {
                 String[] cmd = builder.getSubtitle(i);
-                rt = new RuntimeExec(cmd, folder, RuntimeExec.VERBOSE);
+                rt = new RuntimeExec(cmd, runtimeFolder, RuntimeExec.VERBOSE);
                 rt.execute();
             }
         }
@@ -129,17 +128,4 @@ public class FFMpeg implements Runnable {
         Log.d("Executing " + Arrays.toString(cmd).replace(",", " ".trim()));
     }
 
-    private File getMp4Filename() {
-        String extension = ".mp4";
-        File f = null;
-        int unique = 0;
-        while (f == null || f.exists()) {
-            String name = inputFile.getName();
-            String fileName = FilenameUtils.removeExtension(name) + extension;
-            f = new File(folder, fileName);
-            unique++;
-            extension = "_" + Integer.toString(unique) + ".mp4";
-        }
-        return f;
-    }
 }

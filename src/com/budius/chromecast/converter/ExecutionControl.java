@@ -1,14 +1,14 @@
 package com.budius.chromecast.converter;
 
-import javafx.application.Platform;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FilenameFilter;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * It's a runnable that executes FFPROBE, FFMPEG and clear temp files on a single file or folder (recursively)
@@ -18,37 +18,51 @@ public class ExecutionControl implements Runnable {
     private static final List<String> VIDEO_EXTENSION =
             Arrays.asList("mp4", "mkv", "avi", "mpeg", "mpg", "mpe", "mov", "qt", "asf", "flv", "wmv", "m1v", "m2v", "3gp");
 
-    private final File file;
+    private final File input, output;
     private final ProgressListener listener;
     private int total_video_files;
-    private AtomicInteger processed_video_files;
+    private int processed_video_files;
+    private final File inputParentFolder;
 
-    public ExecutionControl(File file, ProgressListener listener) {
-        this.file = file;
+    public ExecutionControl(File input, File output, ProgressListener listener) {
+        this.input = input;
         this.listener = listener;
+        inputParentFolder = input.isDirectory() ? input : input.getParentFile();
+
+        if (output == null) {
+            this.output = inputParentFolder;
+        } else {
+            this.output = output;
+        }
+
+        Log.setFileLogPath(output);
+
     }
 
     @Override
     public void run() {
-        processed_video_files = new AtomicInteger();
-        processed_video_files.set(0);
-        if (file.isDirectory()) {
-            Log.setFileLogPath(file);
-            total_video_files = getVideoFileCount(file);
-            Platform.runLater(updateListenerRunnable);
-            executeFolder(file);
+        processed_video_files = 0;
+        if (input.isDirectory()) {
+            total_video_files = getVideoFileCount(input);
+            internalProgressListener.onProgressUpdate(processed_video_files, total_video_files);
+            executeFolder(input);
         } else {
-            Log.setFileLogPath(file.getParentFile());
             total_video_files = 1;
-            Platform.runLater(updateListenerRunnable);
-            executeFile(file);
+            internalProgressListener.onProgressUpdate(processed_video_files, total_video_files);
+            executeFile(input);
         }
-        if (listener != null)
-            listener.onComplete();
+        internalProgressListener.onComplete();
     }
 
+    //
+    // the real work gets done here
+    // =========================================================================================================
     private void executeFolder(File folder) {
-        for (File f : folder.listFiles(videoFilesFilter)) {
+
+        List<File> files = Arrays.asList(folder.listFiles(videoFilesFilter));
+        Collections.sort(files, alphabeticalOrderFiles);
+
+        for (File f : files) {
             if (f.isDirectory()) {
                 executeFolder(f);
             } else {
@@ -64,8 +78,16 @@ public class ExecutionControl implements Runnable {
         FFProbe ffProbe = new FFProbe(file);
         if (ffProbe.getData() != null) {
 
+            // get output folder relative to this file and the parent folder
+            File thisFileInputFolder = file.getParentFile();
+            File thisFileOutputFolder = new File(output, thisFileInputFolder.getAbsolutePath().replace(inputParentFolder.getAbsolutePath(), ""));
+
+
+            // generate single conversion settings
+            SingleConversionSetting scs = new SingleConversionSetting(file, thisFileOutputFolder, ffProbe.getData());
+
             // execute ffmpeg
-            FFMpeg ffmpeg = new FFMpeg(ffProbe.getFile(), ffProbe.getData());
+            FFMpeg ffmpeg = new FFMpeg(scs);
             ffmpeg.run();
 
             // clean up ffmpeg temp files
@@ -74,14 +96,17 @@ public class ExecutionControl implements Runnable {
             for (File f : tempFiles) {
                 f.delete();
             }
-            processed_video_files.incrementAndGet();
-            Platform.runLater(updateListenerRunnable);
+            processed_video_files++;
+            internalProgressListener.onProgressUpdate(processed_video_files, total_video_files);
         } else {
             Log.e("Failed to get FFPROBE for " + file.getAbsolutePath());
             Log.fileLog("Failed to get FFPROBE for " + file.getAbsolutePath());
         }
     }
 
+    //
+    // Filters
+    // =========================================================================================================
     private FilenameFilter tempFilesFilter = new FilenameFilter() {
         @Override
         public boolean accept(File dir, String name) {
@@ -99,6 +124,16 @@ public class ExecutionControl implements Runnable {
         }
     };
 
+    private Comparator<File> alphabeticalOrderFiles = new Comparator<File>() {
+        @Override
+        public int compare(File o1, File o2) {
+            return o1.getName().compareTo(o2.getName());
+        }
+    };
+
+    //
+    // Helpers
+    // =========================================================================================================
     private int getVideoFileCount(File folder) {
         int count = 0;
         for (File f : folder.listFiles(videoFilesFilter)) {
@@ -111,17 +146,27 @@ public class ExecutionControl implements Runnable {
         return count;
     }
 
+    //
+    // Interface
+    // =========================================================================================================
     public interface ProgressListener {
         public void onProgressUpdate(int processed, int total);
 
         public void onComplete();
     }
 
-    private Runnable updateListenerRunnable = new Runnable() {
+    private ProgressListener internalProgressListener = new ProgressListener() {
+
         @Override
-        public void run() {
+        public void onProgressUpdate(int processed, int total) {
             if (listener != null)
-                listener.onProgressUpdate(processed_video_files.get(), total_video_files);
+                listener.onProgressUpdate(processed, total);
+        }
+
+        @Override
+        public void onComplete() {
+            if (listener != null)
+                listener.onComplete();
         }
     };
 }

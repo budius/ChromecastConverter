@@ -1,27 +1,55 @@
 package com.budius.chromecast.converter;
 
-import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
+import org.apache.commons.cli.*;
 
-public class Main extends Application {
+/**
+ * Created by budius on 05.04.14.
+ */
+public class Main {
 
 
-    public static Stage stage;
-
-    @Override
-    public void start(Stage primaryStage) throws Exception {
-        Parent root = FXMLLoader.load(getClass().getResource("main.fxml"));
-        primaryStage.setTitle("Chromecast Converter");
-        primaryStage.setScene(new Scene(root, 692, 546));
-        primaryStage.show();
-        stage = primaryStage;
-    }
+    public static final String VERSION = "Chromecast Converter - V1.1";
 
 
     public static void main(String[] args) {
-        launch(args);
+
+        System.out.println(VERSION);
+
+        if (args == null || args.length == 0 ||
+                args.length == 1 && (
+                        args[0].equals("-h") || args[0].equals("-help")
+                )) {
+
+            HelpFormatter formatter = new HelpFormatter();
+            formatter.printHelp("ant", ArgsSettings.getOptions());
+
+            System.exit(0);
+            return;
+        }
+
+        // with arguments, let's process them
+        ArgsSettings s = ArgsSettings.build(args);
+        if (s == null) {
+            System.exit(1);
+            return;
+        }
+
+        settings = s;
+
+        ExecutionControl ec = new ExecutionControl(s.getInput(), s.getOutput(), null);
+        ec.run();
     }
+
+    private static Settings.Interface settings;
+
+    public static Settings.Interface getSettings() {
+        if (settings == null) return Settings.getDefaultSettings();
+        return settings;
+    }
+
+    public static void setSettings(Settings.Interface settings) {
+        Main.settings = settings;
+    }
+
 }
+

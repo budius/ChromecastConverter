@@ -1,6 +1,7 @@
 package com.budius.chromecast.converter;
 
 
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -12,6 +13,7 @@ import javafx.stage.FileChooser;
 import java.io.File;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class MainController implements ExecutionControl.ProgressListener {
 
@@ -50,6 +52,8 @@ public class MainController implements ExecutionControl.ProgressListener {
 
     public void click_Go(ActionEvent actionEvent) {
 
+        processed_video_files.set(0);
+
         Log.clear();
 
         listLog.setItems(Log.verbose);
@@ -60,7 +64,7 @@ public class MainController implements ExecutionControl.ProgressListener {
             textFolder.setDisable(true);
             btnGo.setDisable(true);
 
-            ExecutionControl ec = new ExecutionControl(file, this);
+            ExecutionControl ec = new ExecutionControl(file, null, this);
             BACKGROUND.execute(ec);
         }
     }
@@ -69,14 +73,14 @@ public class MainController implements ExecutionControl.ProgressListener {
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Choose a file:");
         chooser.setInitialDirectory(getCurrentDir());
-        return setCurrentDir(chooser.showOpenDialog(Main.stage));
+        return setCurrentDir(chooser.showOpenDialog(JavaFxApplication.stage));
     }
 
     private File pickFolder() {
         DirectoryChooserBuilder b = DirectoryChooserBuilder.create();
         b.title("Choose a folder");
         b.initialDirectory(getCurrentDir());
-        return setCurrentDir(b.build().showDialog(Main.stage));
+        return setCurrentDir(b.build().showDialog(JavaFxApplication.stage));
     }
 
     private File getCurrentDir() {
@@ -105,7 +109,9 @@ public class MainController implements ExecutionControl.ProgressListener {
 
     @Override
     public void onProgressUpdate(int processed, int total) {
-        txtProgress.setText("Progress: " + processed + " of " + total);
+        processed_video_files.set(processed);
+        total_video_files.set(total);
+        Platform.runLater(updateListenerRunnable);
     }
 
     @Override
@@ -113,4 +119,13 @@ public class MainController implements ExecutionControl.ProgressListener {
         textFolder.setDisable(false);
         btnGo.setDisable(false);
     }
+
+    private AtomicInteger processed_video_files = new AtomicInteger();
+    private AtomicInteger total_video_files = new AtomicInteger();
+    private Runnable updateListenerRunnable = new Runnable() {
+        @Override
+        public void run() {
+            txtProgress.setText("Progress: " + processed_video_files.get() + " of " + total_video_files.get());
+        }
+    };
 }
