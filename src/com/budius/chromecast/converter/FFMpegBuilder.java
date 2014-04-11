@@ -1,6 +1,5 @@
 package com.budius.chromecast.converter;
 
-import com.budius.chromecast.converter.ffprobe_model.Probe;
 import com.budius.chromecast.converter.ffprobe_model.Stream;
 import com.budius.chromecast.converter.ffprobe_model.Tags;
 import org.apache.commons.io.FilenameUtils;
@@ -16,10 +15,6 @@ public class FFMpegBuilder {
 
     // TODO: maybe check what FFMPEG modules are installed and switch to native AAC case libfdk_aac is not present
 
-    private static final long K = 1024;
-    private static final long MAX_AUDIO_BIT_RATE_PER_CHANNEL = 128 * K;
-    private static final long DEFAULT_AUDIO_BIT_RATE_PER_CHANNEL = 64 * K;
-    private static final long MAX_VIDEO_BIT_RATE = 1555 * K; // equals to fit 2 hours movie in 1.4 GB
     private static final String MP4 = "mp4";
 
     public static final int TYPE_NO_GOOD = 1;
@@ -42,15 +37,6 @@ public class FFMpegBuilder {
 
     private static final String SUB_CODEC = "subrip"; // TODO: any others?
 
-    // the original video file name
-    private final File inputfile;
-
-    // the generated video file name (that will be later renamed)
-    private File outputfile;
-
-    // the data about the original video
-    private final Probe probe;
-
     private int type;
     private int numberOfSubtitles;
     private ArrayList<String[]> subtitles = new ArrayList<String[]>();
@@ -58,9 +44,11 @@ public class FFMpegBuilder {
     private String[] secondPass;
     private String[] singlePass;
 
-    public FFMpegBuilder(File f, Probe p) {
-        inputfile = f;
-        probe = p;
+
+    private final SingleConversionSetting conversionSetting;
+
+    public FFMpegBuilder(SingleConversionSetting scs) {
+        conversionSetting = scs;
 
         // Here we will calculate all the data this object needs.
         // Calculating it ahead of conversion allows us to have fallback commands
@@ -87,6 +75,7 @@ public class FFMpegBuilder {
             // TODO: but double check it with more data and in case fails,
             // TODO: generate a standard, good quality command
         }
+
     }
 
     //
@@ -98,10 +87,6 @@ public class FFMpegBuilder {
 
     public int getNumberOfSubtitles() {
         return numberOfSubtitles;
-    }
-
-    public File getGeneratedFile() {
-        return outputfile;
     }
 
     public String[] getFirstPass() {
@@ -145,8 +130,8 @@ public class FFMpegBuilder {
                     || AUDIO_CODEC_2.equals(audioStream.getCodec_name())) {
 
                 // good container
-                String ext = FilenameUtils.getExtension(inputfile.getAbsolutePath());
-                if (MP4.equals(ext) && probe.getFormat().getFormat_name().contains(MP4)) {
+                String ext = FilenameUtils.getExtension(conversionSetting.getOriginalVideoFile().getAbsolutePath());
+                if (MP4.equals(ext) && conversionSetting.getFfProbe().getFormat().getFormat_name().contains(MP4)) {
                     return TYPE_NO_CHANGE;
                 }
 
@@ -162,7 +147,7 @@ public class FFMpegBuilder {
 
     private int internalGetNumberOfSubtitles() {
         int numberOfSubtitles = 0;
-        for (Stream s : probe.getStreams()) {
+        for (Stream s : conversionSetting.getFfProbe().getStreams()) {
             if (CODEC_TYPE_SUBTITLE.equals(s.getCodec_type())) {
                 if (SUB_CODEC.equals(s.getCodec_name())) {
                     numberOfSubtitles++;
@@ -180,12 +165,10 @@ public class FFMpegBuilder {
         if (internalGetType() != TYPE_TWO_PASS)
             return null;
 
-        outputfile = new File(getFilename("_temp.mp4", true));
-
         ArrayList<String> cmd = new ArrayList<String>();
         cmd.add("ffmpeg");
         cmd.add("-i");
-        cmd.add(inputfile.getAbsolutePath());
+        cmd.add(conversionSetting.getOriginalVideoFile().getAbsolutePath());
         String videoBitrate = getVideoBitrate();
 
         if (videoBitrate == null)
@@ -196,7 +179,7 @@ public class FFMpegBuilder {
         cmd.add("-an");
         cmd.add("-pass");
         cmd.add("1");
-        cmd.add(outputfile.getAbsolutePath());
+        cmd.add(conversionSetting.getTempVideoFile().getAbsolutePath());
 
         return getArray(cmd);
     }
@@ -206,14 +189,11 @@ public class FFMpegBuilder {
         if (internalGetType() != TYPE_TWO_PASS)
             return null;
 
-        if (outputfile == null)
-            return null;
-
         ArrayList<String> cmd = new ArrayList<String>();
         cmd.add("ffmpeg");
         cmd.add("-y");
         cmd.add("-i");
-        cmd.add(inputfile.getAbsolutePath());
+        cmd.add(conversionSetting.getOriginalVideoFile().getAbsolutePath());
         String videoBitrate = getVideoBitrate();
 
         if (videoBitrate == null)
@@ -226,7 +206,7 @@ public class FFMpegBuilder {
         cmd.add("+faststart");
         cmd.add("-pass");
         cmd.add("2");
-        cmd.add(outputfile.getAbsolutePath());
+        cmd.add(conversionSetting.getTempVideoFile().getAbsolutePath());
 
         return getArray(cmd);
     }
@@ -242,12 +222,10 @@ public class FFMpegBuilder {
                 return null;
         }
 
-        outputfile = new File(getFilename("_temp.mp4", true));
-
         ArrayList<String> cmd = new ArrayList<String>();
         cmd.add("ffmpeg");
         cmd.add("-i");
-        cmd.add(inputfile.getAbsolutePath());
+        cmd.add(conversionSetting.getOriginalVideoFile().getAbsolutePath());
         cmd.add("-vcodec");
         cmd.add("copy");
         if (type == TYPE_CONVERT_ONLY_AUDIO) {
@@ -259,7 +237,7 @@ public class FFMpegBuilder {
 
         cmd.add("-movflags");
         cmd.add("+faststart");
-        cmd.add(outputfile.getAbsolutePath());
+        cmd.add(conversionSetting.getTempVideoFile().getAbsolutePath());
 
         return getArray(cmd);
     }
@@ -271,7 +249,7 @@ public class FFMpegBuilder {
         // select the correct stream
         int subIndex = 0;
         int ffprobeSubIndex = 0;
-        for (Stream s : probe.getStreams()) {
+        for (Stream s : conversionSetting.getFfProbe().getStreams()) {
             if (CODEC_TYPE_SUBTITLE.equals(s.getCodec_type())) {
                 if (SUB_CODEC.equals(s.getCodec_name())) {
                     if (subIndex == position) {
@@ -287,31 +265,24 @@ public class FFMpegBuilder {
         if (subtitle == null)
             return null;
 
-        // get the filename for the
+        // get the language code for the
         String language = null;
         Tags t = subtitle.getTags();
         if (t != null) {
             language = t.getLanguage();
         }
 
-        String postfix;
-        if (language == null) {
-            postfix = ".srt";
-        } else {
-            postfix = "_" + language + ".srt";
-        }
-
-        String fileName = getFilename(postfix, true);
+        File fileName = conversionSetting.getSubtitleFileName(language);
 
         ArrayList<String> cmd = new ArrayList<String>();
         cmd.add("ffmpeg");
         cmd.add("-i");
-        cmd.add(inputfile.getAbsolutePath());
+        cmd.add(conversionSetting.getOriginalVideoFile().getAbsolutePath());
         cmd.add("-vn");
         cmd.add("-an");
         cmd.add("-codec:s:" + ffprobeSubIndex);
         cmd.add("srt");
-        cmd.add(fileName);
+        cmd.add(fileName.getAbsolutePath());
 
         return getArray(cmd);
     }
@@ -319,21 +290,6 @@ public class FFMpegBuilder {
     //
     // internal helpers
     // =================================================================================================================
-    private String getFilename(String extension, boolean mustBeUnique) {
-        File f = null;
-        int unique = 0;
-        while (f == null || f.exists()) {
-            File folder = inputfile.getParentFile();
-            String name = inputfile.getName();
-            String fileName = FilenameUtils.removeExtension(name) + extension;
-            f = new File(folder, fileName);
-            if (!mustBeUnique)
-                return f.getAbsolutePath();
-            unique++;
-            extension = "_" + Integer.toString(unique) + extension;
-        }
-        return f.getAbsolutePath();
-    }
 
     private String[] getArray(List<String> list) {
         String[] strings = new String[list.size()];
@@ -342,9 +298,9 @@ public class FFMpegBuilder {
     }
 
     private Stream getStream(String name) {
-        for (int i = 0; i < probe.getStreams().size(); i++)
-            if (name.equals(probe.getStreams().get(i).getCodec_type()))
-                return probe.getStreams().get(i);
+        for (int i = 0; i < conversionSetting.getFfProbe().getStreams().size(); i++)
+            if (name.equals(conversionSetting.getFfProbe().getStreams().get(i).getCodec_type()))
+                return conversionSetting.getFfProbe().getStreams().get(i);
         return null;
     }
 
@@ -383,12 +339,11 @@ public class FFMpegBuilder {
             bitRateAdded = true;
         } else {
             try {
-                // aac doesn't need to be bigger than that
                 long abr = Long.parseLong(audioBitRate);
-                if (abr > MAX_AUDIO_BIT_RATE_PER_CHANNEL * audioStream.getChannels()) {
+                if (abr > Settings.getMaxPerChannelAudioBitRate(conversionSetting) * audioStream.getChannels()) {
                     bitRateAdded = true;
                     cmd.add("-b:a");
-                    cmd.add(Long.toString(MAX_AUDIO_BIT_RATE_PER_CHANNEL * audioStream.getChannels()));
+                    cmd.add(Long.toString(Settings.getMaxPerChannelAudioBitRate(conversionSetting) * audioStream.getChannels()));
                 }
             } catch (Exception e) { /* number format */ }
         }
@@ -407,19 +362,19 @@ public class FFMpegBuilder {
         */
 
         long br = getVideoBitrateBasedOnVideoStreamBitRate();
-        if (br <= 0 || br > MAX_VIDEO_BIT_RATE) {
+        if (br <= 0 || br > Settings.getMaxVideoBitRate(conversionSetting)) {
             br = getVideoBitrateBasedOnFileBitrate();
         }
 
-        if (br <= 0 || br > MAX_VIDEO_BIT_RATE) {
-            br = MAX_VIDEO_BIT_RATE;
+        if (br <= 0 || br > Settings.getMaxVideoBitRate(conversionSetting)) {
+            br = Settings.getMaxVideoBitRate(conversionSetting);
         }
         return Long.toString(br);
     }
 
     private long getVideoBitrateBasedOnFileBitrate() {
         // file bitrate
-        String fileBitrate = probe.getFormat().getBit_rate();
+        String fileBitrate = conversionSetting.getFfProbe().getFormat().getBit_rate();
         long fbr;
         if (fileBitrate == null || fileBitrate.trim().length() == 0) {
             return 0l;
@@ -440,7 +395,7 @@ public class FFMpegBuilder {
             abr = Long.parseLong(audioBitrate);
         } catch (Exception e) {
             // number format exception
-            abr = DEFAULT_AUDIO_BIT_RATE_PER_CHANNEL * audioStream.getChannels();
+            abr = Settings.getDefaultPerChannelAudioBitRate() * audioStream.getChannels();
         }
 
         return fbr - abr;

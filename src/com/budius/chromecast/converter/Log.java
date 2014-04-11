@@ -26,6 +26,7 @@ public class Log {
     private static String lastDebug = "";
 
     private static SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss");
+    private static LogListener listener;
 
     private static synchronized String getTime() {
         return format.format(new Date());
@@ -35,6 +36,18 @@ public class Log {
         return getTime() + SEPARATOR + text;
     }
 
+    public void setListener(LogListener listener) {
+        this.listener = listener;
+    }
+
+    public interface LogListener {
+        public void v(String v);
+
+        public void e(String e);
+
+        public void d(String d);
+    }
+
     public static void clear() {
         verbose.clear();
         debug.clear();
@@ -42,41 +55,42 @@ public class Log {
 
     public static void v(final String v) {
         System.out.println(v);
+        if(listener != null)
+            listener.v(v);
         Platform.runLater(new Runnable() {
-            @Override
-            public void run() {
+                              @Override
+                              public void run() {
 
 
-                if (v.startsWith(PROCESSING_1) || v.startsWith(PROCESSING_2)) {
+                                  if (v.startsWith(PROCESSING_1) || v.startsWith(PROCESSING_2)) {
 
-                    // do the verbose
-                    if (verbose.size() > 0) {
-                        if ((v.startsWith(PROCESSING_1) && verbose.get(0).startsWith(PROCESSING_1)) ||
-                                (v.startsWith(PROCESSING_2) && verbose.get(0).startsWith(PROCESSING_2))) {
-                            verbose.remove(0);
-                        }
-                    }
+                                      // do the verbose
+                                      if (verbose.size() > 0) {
+                                          if ((v.startsWith(PROCESSING_1) && verbose.get(0).startsWith(PROCESSING_1)) ||
+                                                  (v.startsWith(PROCESSING_2) && verbose.get(0).startsWith(PROCESSING_2))) {
+                                              verbose.remove(0);
+                                          }
+                                      }
 
-                    // do the log
-                    if ((v.startsWith(PROCESSING_1) && lastDebug.startsWith(PROCESSING_1)) ||
-                            (v.startsWith(PROCESSING_2) && lastDebug.startsWith(PROCESSING_2))) {
-                        debug.remove(0);
-                    }
-                    lastDebug = v;
-                    debug.add(0, getText(v));
-                }
+                                      // do the log
+                                      if ((v.startsWith(PROCESSING_1) && lastDebug.startsWith(PROCESSING_1)) ||
+                                              (v.startsWith(PROCESSING_2) && lastDebug.startsWith(PROCESSING_2))) {
+                                          debug.remove(0);
+                                      }
+                                      lastDebug = v;
+                                      debug.add(0, getText(v));
+                                  }
 
-                verbose.add(0, v);
-                if (verbose.size() > MAX_LOG)
-                    verbose.remove(verbose.size() - 1);
-            }
-        }
-
+                                  verbose.add(0, v);
+                                  if (verbose.size() > MAX_LOG)
+                                      verbose.remove(verbose.size() - 1);
+                              }
+                          }
         );
     }
 
     public static void e(final String s) {
-        System.out.println("[ERROR] " + s);
+        System.err.println("[ERROR] " + s);
         d("[ERROR] " + s);
     }
 
