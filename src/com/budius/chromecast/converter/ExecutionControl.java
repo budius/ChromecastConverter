@@ -96,12 +96,14 @@ public class ExecutionControl implements Runnable {
             for (File f : tempFiles) {
                 f.delete();
             }
-            processed_video_files++;
-            internalProgressListener.onProgressUpdate(processed_video_files, total_video_files);
         } else {
             Log.e("Failed to get FFPROBE for " + file.getAbsolutePath());
             Log.fileLog("Failed to get FFPROBE for " + file.getAbsolutePath());
         }
+
+        processed_video_files++;
+        internalProgressListener.onProgressUpdate(processed_video_files, total_video_files);
+
     }
 
     //

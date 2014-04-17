@@ -81,4 +81,9 @@ public class SingleConversionSetting implements Settings.Interface {
     public int getQuality() {
         return Main.getSettings().getQuality();
     }
+
+    @Override
+    public int getSpeed() {
+        return Main.getSettings().getSpeed();
+    }
 }

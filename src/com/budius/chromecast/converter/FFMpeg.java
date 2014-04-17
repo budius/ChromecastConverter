@@ -67,6 +67,10 @@ public class FFMpeg implements Runnable {
 
     private boolean convertVideo(int type) {
 
+        if (false) {
+            return true;
+        }
+
         long startTime = System.currentTimeMillis();
         String[] cmd;
         RuntimeExec rt;
@@ -74,6 +78,7 @@ public class FFMpeg implements Runnable {
         switch (type) {
             case FFMpegBuilder.TYPE_CONVERT_ONLY_AUDIO:
             case FFMpegBuilder.TYPE_JUST_CHANGE_CONTAINER:
+            case FFMpegBuilder.TYPE_CRF:
                 Log.d("Starting single pass for file: " + conversionSetting.getOriginalVideoFile().getAbsolutePath());
                 cmd = builder.getSinglePass();
                 if (cmd != null) {
@@ -115,8 +120,8 @@ public class FFMpeg implements Runnable {
         int numberOfSubs = builder.getNumberOfSubtitles();
         if (numberOfSubs > 0) {
             RuntimeExec rt;
-            Log.d("Generating subtitles for: " + conversionSetting.getOriginalVideoFile().getAbsolutePath());
             for (int i = 0; i < numberOfSubs; i++) {
+                Log.d("Generating subtitle " + i + " for: " + conversionSetting.getOriginalVideoFile().getAbsolutePath());
                 String[] cmd = builder.getSubtitle(i);
                 rt = new RuntimeExec(cmd, runtimeFolder, RuntimeExec.VERBOSE);
                 rt.execute();
@@ -125,7 +130,7 @@ public class FFMpeg implements Runnable {
     }
 
     private void logCmd(String[] cmd) {
-        Log.d("Executing " + Arrays.toString(cmd).replace(",", " ".trim()));
+        Log.d("Executing " + Arrays.toString(cmd).replace(",", " ").trim());
     }
 
 }

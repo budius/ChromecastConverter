@@ -11,6 +11,10 @@ import java.io.File;
  */
 public class FFProbe {
 
+    public static final String CODEC_TYPE_VIDEO = "video";
+    public static final String CODEC_TYPE_AUDIO = "audio";
+    public static final String CODEC_TYPE_SUBTITLE = "subtitle";
+
     private final String[] CMD_JSON =
             {"ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", ""};
 

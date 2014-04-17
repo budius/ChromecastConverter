@@ -8,6 +8,8 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.budius.chromecast.converter.FFProbe.*;
+
 /**
  * Captures data from FFPROBE and creates appropriates FFMPEG commands
  */
@@ -22,11 +24,7 @@ public class FFMpegBuilder {
     public static final int TYPE_TWO_PASS = 3;
     public static final int TYPE_NO_CHANGE = 4;
     public static final int TYPE_JUST_CHANGE_CONTAINER = 5;
-
-    // FFProbe values ========================================================================
-    private static final String CODEC_TYPE_VIDEO = "video";
-    private static final String CODEC_TYPE_AUDIO = "audio";
-    private static final String CODEC_TYPE_SUBTITLE = "subtitle";
+    public static final int TYPE_CRF = 6; // uses single pass Constant Rate Factor
 
     // Chromecast Supported Media ============================================================
     private static final String VIDEO_CODEC = "h264";
@@ -35,7 +33,7 @@ public class FFMpegBuilder {
     private static final String AUDIO_CODEC_1 = "aac";
     private static final String AUDIO_CODEC_2 = "mp3";
 
-    private static final String SUB_CODEC = "subrip"; // TODO: any others?
+    private static final String INVALID_SUBTITLE = "dvd_subtitle";
 
     private int type;
     private int numberOfSubtitles;
@@ -63,6 +61,9 @@ public class FFMpegBuilder {
             case TYPE_NO_GOOD:
             case TYPE_NO_CHANGE:
                 return;
+            case TYPE_CRF:
+                singlePass = internalGetCrfSinglePass();
+                return;
             case TYPE_CONVERT_ONLY_AUDIO:
             case TYPE_JUST_CHANGE_CONTAINER:
                 singlePass = internalGetSinglePass();
@@ -70,10 +71,14 @@ public class FFMpegBuilder {
             case TYPE_TWO_PASS:
                 firstPass = internalGetFirstPass();
                 secondPass = internalGetSecondPass();
+
+                // getVideoBitrate() might fail, on those cases we revert back to CRF
+                if (firstPass == null || secondPass == null) {
+                    type = TYPE_CRF;
+                    singlePass = internalGetCrfSinglePass();
+                }
+
                 return;
-            // TODO: I don't believe any of th commands generation is failing,
-            // TODO: but double check it with more data and in case fails,
-            // TODO: generate a standard, good quality command
         }
 
     }
@@ -142,16 +147,16 @@ public class FFMpegBuilder {
             return TYPE_CONVERT_ONLY_AUDIO;
         }
 
-        return TYPE_TWO_PASS;
+        // same file size uses 2 pass, other qualities uses CRF
+        return conversionSetting.getQuality() == Settings.QUALITY_SAME_FILE_SIZE ? TYPE_TWO_PASS : TYPE_CRF;
     }
 
     private int internalGetNumberOfSubtitles() {
         int numberOfSubtitles = 0;
         for (Stream s : conversionSetting.getFfProbe().getStreams()) {
-            if (CODEC_TYPE_SUBTITLE.equals(s.getCodec_type())) {
-                if (SUB_CODEC.equals(s.getCodec_name())) {
-                    numberOfSubtitles++;
-                }
+            if (CODEC_TYPE_SUBTITLE.equals(s.getCodec_type()) &&
+                    !INVALID_SUBTITLE.equals(s.getCodec_name())) {
+                numberOfSubtitles++;
             }
         }
         return numberOfSubtitles;
@@ -162,7 +167,7 @@ public class FFMpegBuilder {
     // =================================================================================================================
     private String[] internalGetFirstPass() {
 
-        if (internalGetType() != TYPE_TWO_PASS)
+        if (type != TYPE_TWO_PASS)
             return null;
 
         ArrayList<String> cmd = new ArrayList<String>();
@@ -186,7 +191,7 @@ public class FFMpegBuilder {
 
     private String[] internalGetSecondPass() {
 
-        if (internalGetType() != TYPE_TWO_PASS)
+        if (type != TYPE_TWO_PASS)
             return null;
 
         ArrayList<String> cmd = new ArrayList<String>();
@@ -213,7 +218,6 @@ public class FFMpegBuilder {
 
     private String[] internalGetSinglePass() {
 
-        int type = internalGetType();
         switch (type) {
             case TYPE_NO_GOOD:
                 Log.v("");
@@ -242,30 +246,77 @@ public class FFMpegBuilder {
         return getArray(cmd);
     }
 
+    private String[] internalGetCrfSinglePass() {
+
+        if (type != TYPE_CRF)
+            return null;
+
+        ArrayList<String> cmd = new ArrayList<String>();
+        cmd.add("ffmpeg");
+        cmd.add("-i");
+        cmd.add(conversionSetting.getOriginalVideoFile().getAbsolutePath());
+        cmd.add("-c:v");
+        cmd.add("libx264");
+        cmd.add("-profile:v");
+        cmd.add("high");
+        cmd.add("-level");
+        cmd.add("5");
+        cmd.add("-preset");
+        cmd.add(Settings.ARRAY_SPEED[conversionSetting.getSpeed()]);
+        cmd.add("-crf");
+        switch (conversionSetting.getQuality()) {
+            case Settings.QUALITY_SUPER:
+                cmd.add("15");
+                break;
+            case Settings.QUALITY_NORMAL:
+                cmd.add("23");
+                break;
+            case Settings.QUALITY_HIGH:
+            default:
+                cmd.add("18");
+                break;
+        }
+
+        String videoBitRate = getVideoBitrate();
+        if (videoBitRate != null) {
+            cmd.add("-maxrate");
+            cmd.add(videoBitRate);
+            cmd.add("-bufsize");
+            cmd.add("5M");
+        }
+
+        addAudioConversion(cmd);
+        cmd.add("-movflags");
+        cmd.add("+faststart");
+        cmd.add(conversionSetting.getTempVideoFile().getAbsolutePath());
+
+        return getArray(cmd);
+    }
+
     private String[] internalGetSubtitle(int position) {
 
         Stream subtitle = null;
 
-        // select the correct stream
-        int subIndex = 0;
-        int ffprobeSubIndex = 0;
-        for (Stream s : conversionSetting.getFfProbe().getStreams()) {
-            if (CODEC_TYPE_SUBTITLE.equals(s.getCodec_type())) {
-                if (SUB_CODEC.equals(s.getCodec_name())) {
-                    if (subIndex == position) {
-                        subtitle = s;
-                    }
-                    subIndex++;
+        int subtitleIndex = 0;
+
+        for (int streamIndex = 0; streamIndex < conversionSetting.getFfProbe().getStreams().size(); streamIndex++) {
+            Stream s = conversionSetting.getFfProbe().getStreams().get(streamIndex);
+            if (CODEC_TYPE_SUBTITLE.equals(s.getCodec_type()) &&
+                    !INVALID_SUBTITLE.equals(s.getCodec_name())) {
+
+                if (position == subtitleIndex) {
+                    subtitle = s;
                 }
-                if (subtitle == null)
-                    ffprobeSubIndex++;
+
+                subtitleIndex++; // increment for all valid subtitles
             }
         }
+
 
         if (subtitle == null)
             return null;
 
-        // get the language code for the
+        // get the language code for the filename
         String language = null;
         Tags t = subtitle.getTags();
         if (t != null) {
@@ -280,8 +331,8 @@ public class FFMpegBuilder {
         cmd.add(conversionSetting.getOriginalVideoFile().getAbsolutePath());
         cmd.add("-vn");
         cmd.add("-an");
-        cmd.add("-codec:s:" + ffprobeSubIndex);
-        cmd.add("srt");
+        cmd.add("-map");
+        cmd.add("0:s:" + position);
         cmd.add(fileName.getAbsolutePath());
 
         return getArray(cmd);
@@ -357,19 +408,18 @@ public class FFMpegBuilder {
     private String getVideoBitrate() {
 
         /*
-        I found cases where mpeg1 streams return the uncompressed bitrate, rendering absurdly high bit rates
-        Those cases we try again, by using the file bitrate, if that still too big, we just use the MAX val
+        I found cases where mpeg1 streams return the uncompressed bitrate, rendering absurdly high bit rates.
+        So we're getting the smaller from the two
         */
 
-        long br = getVideoBitrateBasedOnVideoStreamBitRate();
-        if (br <= 0 || br > Settings.getMaxVideoBitRate(conversionSetting)) {
-            br = getVideoBitrateBasedOnFileBitrate();
-        }
+        long br_stream = getVideoBitrateBasedOnVideoStreamBitRate();
+        long br_file = getVideoBitrateBasedOnFileBitrate();
+        long br = br_file > br_stream ? br_stream : br_file;
 
-        if (br <= 0 || br > Settings.getMaxVideoBitRate(conversionSetting)) {
-            br = Settings.getMaxVideoBitRate(conversionSetting);
-        }
-        return Long.toString(br);
+        if (br <= 0)
+            return null;
+        else
+            return Long.toString(br);
     }
 
     private long getVideoBitrateBasedOnFileBitrate() {

@@ -1,9 +1,13 @@
 package com.budius.chromecast.converter;
 
-import org.apache.commons.cli.*;
+import org.apache.commons.cli.BasicParser;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.Options;
 
 import java.io.File;
-import java.util.Locale;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Created by budius on 06.04.14.
@@ -13,16 +17,23 @@ public class ArgsSettings implements Settings.Interface {
     private CommandLine cmd;
     private static final Options OPTIONS;
 
-    private static final String Q_HIGH = "HIGH";
-    private static final String Q_SUPER = "SUPER";
-    private static final String Q_NORMAL = "NORMAL";
+    private static final String[] ARRAY_Q = {"super", "high", "normal", "same_size"};
+    private static final List<String> QUALITY = Arrays.asList(ARRAY_Q);
+
+
+    private static final List<String> SPEED = Arrays.asList(Settings.ARRAY_SPEED);
+
+    private static String fromArray(String[] array) {
+        return Arrays.toString(array).replace("[", "").replace("]", "");
+    }
 
     static {
         OPTIONS = new Options();
         OPTIONS.addOption("i", true, "Input File or Folder");
         OPTIONS.addOption("o", true, "Output Folder (if different)");
         OPTIONS.addOption("d", false, "Add this flag to delete the original file upon successful conversion");
-        OPTIONS.addOption("q", true, "Quality: SUPER, HIGH, NORMAL. Default is HIGH");
+        OPTIONS.addOption("q", true, "Quality: " + fromArray(ARRAY_Q) + ". Default is high");
+        OPTIONS.addOption("s", true, "Speed: " + fromArray(Settings.ARRAY_SPEED) + ". Default is slow");
     }
 
     public static ArgsSettings build(String[] args) {
@@ -84,14 +95,23 @@ public class ArgsSettings implements Settings.Interface {
     @Override
     public int getQuality() {
         if (cmd.hasOption("q")) {
-            String q = cmd.getOptionValue("q");
-            if (Q_HIGH.equals(q.toUpperCase(Locale.ENGLISH))) return Settings.QUALITY_HIGH;
-            if (Q_SUPER.equals(q.toUpperCase(Locale.ENGLISH))) return Settings.QUALITY_SUPER;
-            if (Q_NORMAL.equals(q.toUpperCase(Locale.ENGLISH))) return Settings.QUALITY_NORMAL;
-            return Settings.getDefaultSettings().getQuality();
-        } else {
-            return Settings.getDefaultSettings().getQuality();
+            String q = cmd.getOptionValue("q").toLowerCase();
+            if (QUALITY.contains(q)) {
+                return QUALITY.indexOf(q);
+            }
         }
+        return Settings.getDefaultSettings().getQuality();
+    }
+
+    @Override
+    public int getSpeed() {
+        if (cmd.hasOption("s")) {
+            String s = cmd.getOptionValue("s").toLowerCase();
+            if (SPEED.contains(s)) {
+                return SPEED.indexOf(s);
+            }
+        }
+        return Settings.getDefaultSettings().getSpeed();
     }
 
     public static Options getOptions() {
