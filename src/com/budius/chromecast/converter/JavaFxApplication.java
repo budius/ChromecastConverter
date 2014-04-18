@@ -17,7 +17,7 @@ public class JavaFxApplication extends Application {
     public void start(Stage primaryStage) throws Exception {
         Parent root = FXMLLoader.load(getClass().getResource("main.fxml"));
         primaryStage.setTitle(Main.VERSION);
-        primaryStage.setScene(new Scene(root, 692, 546));
+        primaryStage.setScene(new Scene(root));
         primaryStage.show();
         stage = primaryStage;
     }

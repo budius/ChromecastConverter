@@ -3,10 +3,7 @@ package com.budius.chromecast.converter;
 
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.stage.DirectoryChooserBuilder;
 import javafx.stage.FileChooser;
 
@@ -15,109 +12,86 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class MainController implements ExecutionControl.ProgressListener {
+public class MainController implements ExecutionControl.ProgressListener, Settings.Interface {
 
+    private Control[] controls;
+    public Button btnInputFile;
+    public Button btnInputFolder;
+    public Button btnOutputFolder;
     public Button btnGo;
-    private Executor BACKGROUND = Executors.newSingleThreadExecutor();
-    public ListView listRuntimeExec;
-    public ListView listLog;
-    public TextField textFolder;
+    public ListView list;
+    public CheckBox checkDelete;
+    public ComboBox comboQuality;
+    public ComboBox comboSpeed;
+    public TextField textOutputFolder;
+    public TextField textInputFolder;
     public Label txtProgress;
-    private File file;
-    private File currentDir;
 
-    public void click_selectFolder(ActionEvent actionEvent) {
-        File file = pickFolder();
-        if (file == null) {
-            btnGo.setDisable(true);
-            textFolder.setText("");
-        } else {
-            btnGo.setDisable(false);
-            this.file = file;
-            textFolder.setText(file.getAbsolutePath());
-        }
-    }
+    private Executor BACKGROUND = Executors.newSingleThreadExecutor();
+    private File lastFolder = null;
 
-    public void click_selectFile(ActionEvent actionEvent) {
-        File file = pickFile();
-        if (file == null) {
-            btnGo.setDisable(true);
-            textFolder.setText("");
-        } else {
-            btnGo.setDisable(false);
-            this.file = file;
-            textFolder.setText(file.getAbsolutePath());
-        }
-    }
+    public void initialize() {
+        System.out.println("onStart");
+        comboQuality.getSelectionModel().select(Settings.QUALITY_HIGH);
+        comboSpeed.getSelectionModel().select(Settings.SPEED_SLOW);
+        checkDelete.setSelected(true);
 
-    public void click_Go(ActionEvent actionEvent) {
+        controls = new Control[]{
+                btnInputFile, btnInputFolder, btnOutputFolder, btnGo,
+                checkDelete, comboQuality, comboSpeed,
+                textOutputFolder, textInputFolder};
 
-        processed_video_files.set(0);
+        list.setItems(Log.debug);
+        textInputFolder.setText("_");
+        textOutputFolder.setText("_");
 
-        Log.clear();
-
-        listLog.setItems(Log.verbose);
-        listRuntimeExec.setItems(Log.debug);
-
-        if (file != null && file.exists()) {
-
-            textFolder.setDisable(true);
-            btnGo.setDisable(true);
-
-            ExecutionControl ec = new ExecutionControl(file, null, this);
-            BACKGROUND.execute(ec);
-        }
-    }
-
-    private File pickFile() {
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle("Choose a file:");
-        chooser.setInitialDirectory(getCurrentDir());
-        return setCurrentDir(chooser.showOpenDialog(JavaFxApplication.stage));
-    }
-
-    private File pickFolder() {
-        DirectoryChooserBuilder b = DirectoryChooserBuilder.create();
-        b.title("Choose a folder");
-        b.initialDirectory(getCurrentDir());
-        return setCurrentDir(b.build().showDialog(JavaFxApplication.stage));
-    }
-
-    private File getCurrentDir() {
-        if (currentDir == null) {
-            String dir = System.getProperty("user.home");
-            File newCurrentDir = new File(dir);
-            if (newCurrentDir.exists() && newCurrentDir.isDirectory()) {
-                return newCurrentDir;
-            } else {
-                return null;
-            }
-        } else {
-            return currentDir;
-        }
-    }
-
-    private File setCurrentDir(File file) {
-        if (file != null)
-            if (file.isDirectory()) {
-                currentDir = file;
-            } else {
-                currentDir = file.getParentFile();
-            }
-        return file;
     }
 
     @Override
     public void onProgressUpdate(int processed, int total) {
-        processed_video_files.set(processed);
         total_video_files.set(total);
+        processed_video_files.set(processed);
         Platform.runLater(updateListenerRunnable);
     }
 
     @Override
     public void onComplete() {
-        textFolder.setDisable(false);
-        btnGo.setDisable(false);
+        for (Control c : controls) {
+            c.setDisable(false);
+        }
+    }
+
+
+    private File pickFile() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Choose a file:");
+
+        File system = new File(System.getProperty("user.home"));
+        File initial = lastFolder == null ? system : lastFolder;
+        if (initial.exists())
+            chooser.setInitialDirectory(initial);
+
+        File chosen = chooser.showOpenDialog(JavaFxApplication.stage);
+        if (chosen != null)
+            lastFolder = chosen.getParentFile();
+
+        return chosen;
+    }
+
+    private File pickFolder() {
+        DirectoryChooserBuilder b = DirectoryChooserBuilder.create();
+        b.title("Choose a folder");
+
+        File system = new File(System.getProperty("user.home"));
+        File initial = lastFolder == null ? system : lastFolder;
+        if (initial.exists())
+            b.initialDirectory(initial);
+
+        File chosen = b.build().showDialog(JavaFxApplication.stage);
+        if (chosen != null)
+            lastFolder = chosen;
+
+        return chosen;
     }
 
     private AtomicInteger processed_video_files = new AtomicInteger();
@@ -125,7 +99,90 @@ public class MainController implements ExecutionControl.ProgressListener {
     private Runnable updateListenerRunnable = new Runnable() {
         @Override
         public void run() {
-            txtProgress.setText("Progress: " + processed_video_files.get() + " of " + total_video_files.get());
+            txtProgress.setText("Progress: " + processed_video_files.get() + "/" + total_video_files.get());
         }
     };
+
+    //
+    // clicks
+    // =================================================================================================================
+    public void click_btnInputFile(ActionEvent actionEvent) {
+        System.out.println("click_btnInputFile");
+        File f = pickFile();
+        if (f != null) {
+            textInputFolder.setText(f.getAbsolutePath());
+            textOutputFolder.setText(f.getParentFile().getAbsolutePath());
+        }
+    }
+
+    public void click_btnInputFolder(ActionEvent actionEvent) {
+        System.out.println("click_btnInputFolder");
+        File f = pickFolder();
+        if (f != null) {
+            textInputFolder.setText(f.getAbsolutePath());
+            textOutputFolder.setText(f.getAbsolutePath());
+        }
+    }
+
+    public void click_btnOutputFolder(ActionEvent actionEvent) {
+        System.out.println("click_btnOutputFolder");
+        File f = pickFolder();
+        if (f != null)
+            textOutputFolder.setText(f.getAbsolutePath());
+    }
+
+    public void click_btnGo(ActionEvent actionEvent) {
+        System.out.println("click_btnGo");
+
+        File input = new File(textInputFolder.getText());
+        File output = new File(textOutputFolder.getText());
+
+        if (input.exists() && output.exists() && output.isDirectory()) {
+            Log.clear();
+            Main.setSettings(this);
+
+            // get settings
+            deleteOnConversion = checkDelete.isSelected();
+            quality = comboQuality.getSelectionModel().getSelectedIndex();
+            speed = comboSpeed.getSelectionModel().getSelectedIndex();
+
+            Log.d("=====================================================================================================");
+            Log.d(deleteOnConversion ? "Delete on success." : "Do not delete on success");
+            Log.d("Speed: " + Settings.ARRAY_SPEED[speed]);
+            Log.d("Quality: " + Settings.ARRAY_QUALITY[quality]);
+            Log.d("Settings:");
+
+            for (Control c : controls) {
+                c.setDisable(true);
+            }
+
+            ExecutionControl ec = new ExecutionControl(input, output, this);
+            BACKGROUND.execute(ec);
+
+        } else {
+            Log.d("Invalid input/output folder");
+        }
+
+
+    }
+
+
+    private boolean deleteOnConversion;
+    private int quality;
+    private int speed;
+
+    @Override
+    public boolean deleteOriginalFileOnSuccessfulConversion() {
+        return deleteOnConversion;
+    }
+
+    @Override
+    public int getQuality() {
+        return quality;
+    }
+
+    @Override
+    public int getSpeed() {
+        return speed;
+    }
 }

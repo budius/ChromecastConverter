@@ -18,6 +18,9 @@ public class Settings {
             "slower",
             "veryslow"};
 
+    public static final String[] ARRAY_QUALITY = {
+            "super", "high", "normal", "same_size"};
+
     public static final int SPEED_ULTRA_FAST = 0;
     public static final int SPEED_SUPER_FAST = 1;
     public static final int SPEED_VERY_FAST = 2;

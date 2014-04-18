@@ -17,10 +17,8 @@ public class ArgsSettings implements Settings.Interface {
     private CommandLine cmd;
     private static final Options OPTIONS;
 
-    private static final String[] ARRAY_Q = {"super", "high", "normal", "same_size"};
-    private static final List<String> QUALITY = Arrays.asList(ARRAY_Q);
 
-
+    private static final List<String> QUALITY = Arrays.asList(Settings.ARRAY_QUALITY);
     private static final List<String> SPEED = Arrays.asList(Settings.ARRAY_SPEED);
 
     private static String fromArray(String[] array) {
@@ -32,7 +30,7 @@ public class ArgsSettings implements Settings.Interface {
         OPTIONS.addOption("i", true, "Input File or Folder");
         OPTIONS.addOption("o", true, "Output Folder (if different)");
         OPTIONS.addOption("d", false, "Add this flag to delete the original file upon successful conversion");
-        OPTIONS.addOption("q", true, "Quality: " + fromArray(ARRAY_Q) + ". Default is high");
+        OPTIONS.addOption("q", true, "Quality: " + fromArray(Settings.ARRAY_QUALITY) + ". Default is high");
         OPTIONS.addOption("s", true, "Speed: " + fromArray(Settings.ARRAY_SPEED) + ". Default is slow");
     }
 

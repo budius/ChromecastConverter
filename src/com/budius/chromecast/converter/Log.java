@@ -36,8 +36,8 @@ public class Log {
         return getTime() + SEPARATOR + text;
     }
 
-    public void setListener(LogListener listener) {
-        this.listener = listener;
+    public static void setListener(LogListener listener) {
+        listener = listener;
     }
 
     public interface LogListener {
