@@ -63,6 +63,10 @@ public class ExecutionControl implements Runnable {
         Collections.sort(files, alphabeticalOrderFiles);
 
         for (File f : files) {
+
+            if (isCancel())
+                return;
+
             if (f.isDirectory()) {
                 executeFolder(f);
             } else {
@@ -72,6 +76,10 @@ public class ExecutionControl implements Runnable {
     }
 
     private void executeFile(File file) {
+
+        if (isCancel())
+            return;
+
         Log.d("================================================================================");
 
         // get data
@@ -146,6 +154,10 @@ public class ExecutionControl implements Runnable {
             }
         }
         return count;
+    }
+
+    private boolean isCancel() {
+        return Thread.currentThread().isInterrupted();
     }
 
     //

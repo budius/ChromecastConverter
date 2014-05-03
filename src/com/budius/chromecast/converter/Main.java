@@ -8,7 +8,7 @@ import org.apache.commons.cli.*;
 public class Main {
 
 
-    public static final String VERSION = "Chromecast Converter - V1.1";
+    public static final String VERSION = "Chromecast Converter - V1.1.1";
 
 
     public static void main(String[] args) {

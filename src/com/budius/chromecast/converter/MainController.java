@@ -3,16 +3,18 @@ package com.budius.chromecast.converter;
 
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.scene.control.*;
 import javafx.stage.DirectoryChooserBuilder;
 import javafx.stage.FileChooser;
+import javafx.stage.WindowEvent;
 
 import java.io.File;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class MainController implements ExecutionControl.ProgressListener, Settings.Interface {
+public class MainController implements ExecutionControl.ProgressListener, Settings.Interface, EventHandler<WindowEvent> {
 
     private Control[] controls;
     public Button btnInputFile;
@@ -27,7 +29,7 @@ public class MainController implements ExecutionControl.ProgressListener, Settin
     public TextField textInputFolder;
     public Label txtProgress;
 
-    private Executor BACKGROUND = Executors.newSingleThreadExecutor();
+    private ExecutorService BACKGROUND = Executors.newSingleThreadExecutor();
     private File lastFolder = null;
 
     public void initialize() {
@@ -44,6 +46,8 @@ public class MainController implements ExecutionControl.ProgressListener, Settin
         list.setItems(Log.debug);
         textInputFolder.setText("_");
         textOutputFolder.setText("_");
+
+        JavaFxApplication.stage.setOnCloseRequest(this);
 
     }
 
@@ -157,13 +161,11 @@ public class MainController implements ExecutionControl.ProgressListener, Settin
             }
 
             ExecutionControl ec = new ExecutionControl(input, output, this);
-            BACKGROUND.execute(ec);
+            BACKGROUND.submit(ec);
 
         } else {
             Log.d("Invalid input/output folder");
         }
-
-
     }
 
 
@@ -184,5 +186,11 @@ public class MainController implements ExecutionControl.ProgressListener, Settin
     @Override
     public int getSpeed() {
         return speed;
+    }
+
+    @Override
+    public void handle(WindowEvent windowEvent) {
+        BACKGROUND.shutdownNow();
+        Platform.exit();
     }
 }

@@ -323,6 +323,9 @@ public class FFMpegBuilder {
             language = t.getLanguage();
         }
 
+        if (language == null)
+            language = "DEFAULT";
+
         File fileName = conversionSetting.getSubtitleFileName(language);
 
         ArrayList<String> cmd = new ArrayList<String>();
