@@ -79,7 +79,7 @@ public class RuntimeExec {
          Log.d("IOException. " + e.getMessage());
       }
 
-      Log.i(String.format("Execution finished with %s in %s seconds", (success ? "success" : "fail"), Long.toString((System.currentTimeMillis() - startTime) / 100)));
+      Log.i(String.format("Execution finished with %s in %s seconds", (success ? "success" : "fail"), Long.toString((System.currentTimeMillis() - startTime) / 1000)));
 
       return success;
    }
