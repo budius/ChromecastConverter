@@ -26,3 +26,6 @@ hs_err_pid*
 out/
 *.iml
 *.iws
+
+# Don't ignore code style, so it can be nicely shared across devs
+!.idea/codeStyleSettings.xml
