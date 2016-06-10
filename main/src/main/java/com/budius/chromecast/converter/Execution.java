@@ -1,6 +1,7 @@
 package com.budius.chromecast.converter;
 
 import com.budius.chromecast.converter.processor.Audio;
+import com.budius.chromecast.converter.processor.CheckConversionCmd;
 import com.budius.chromecast.converter.processor.DeleteOriginal;
 import com.budius.chromecast.converter.processor.FFProbe;
 import com.budius.chromecast.converter.processor.FFmpegCmdEnd;
@@ -77,6 +78,9 @@ public class Execution implements Runnable {
          // Build Subtitle extraction commands
          new Item("Subtitles", new Subtitles()),
 
+         // Checks if any conversion is necessary and process the `move` flag
+         new Item("CheckConversionCmd", new CheckConversionCmd()),
+
          // Execute FFMPEG commands
          new Item("Conversion", new FFmpegExecConversion()),
          new Item("Subtitles", new FFmpegExecSubtitles()),
@@ -100,7 +104,9 @@ public class Execution implements Runnable {
                Log.e(String.format("%s. Failed to `%s` for file %s.", result.message, item.name, settings.input.getAbsolutePath()));
                break ExecutionLoop;
             case Processor.Result.CODE_ABORT:
-               Log.w(String.format("%s for file %s.", result.message, settings.input.getAbsolutePath()));
+               if (result.message != null && result.message.length() > 0) {
+                  Log.w(String.format("%s for file %s.", result.message, settings.input.getAbsolutePath()));
+               }
                break ExecutionLoop;
          }
       }

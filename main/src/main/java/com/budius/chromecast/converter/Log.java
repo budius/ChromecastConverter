@@ -23,29 +23,15 @@ public class Log {
       return debug;
    }
 
-   public static Log get() {
-      return instance;
-   }
-
-   private Logger error = Logger.getLogger("CC_error");
-   private Logger warn = Logger.getLogger("CC_warn");
+   private File folder;
+   private Logger error;
+   private Logger warn;
 
    private Log(File folder) {
-      setup(warn, folder, "ChromecastConvert_WARNING");
-      setup(error, folder, "ChromecastConvert_ERROR");
+      this.folder = folder;
    }
 
-   private static void setup(Logger logger, File folder, String fileName) {
-      try {
-         FileHandler fh = new FileHandler(new File(folder, fileName + ".log").getAbsolutePath());
-         fh.setFormatter(new SimpleFormatter());
-         logger.addHandler(fh);
-         logger.setUseParentHandlers(false);
-      } catch (IOException e) {
-         e.printStackTrace();
-      }
-   }
-
+   // static =======================================================================================
    public static void d(String msg) {
       if (debug) {
          System.out.println(msg);
@@ -58,12 +44,36 @@ public class Log {
 
    public static void w(String msg) {
       System.out.println("WARNING: " + msg);
-      instance.warn.warning(msg);
+      if (instance.warn == null) {
+         instance.warn = setup(instance.folder, "ChromecastConvert_WARNING");
+      }
+      if (instance.warn != null) {
+         instance.warn.warning(msg);
+      }
    }
 
    public static void e(String msg) {
       System.out.println("ERROR: " + msg);
-      instance.error.severe(msg);
+      if (instance.error == null) {
+         instance.error = setup(instance.folder, "ChromecastConvert_ERROR");
+      }
+      if (instance.error != null) {
+         instance.error.severe(msg);
+      }
+   }
+
+   private static Logger setup(File folder, String fileName) {
+      try {
+         FileHandler fh = new FileHandler(new File(folder, fileName + ".log").getAbsolutePath());
+         fh.setFormatter(new SimpleFormatter());
+         Logger logger = Logger.getLogger(fileName);
+         logger.addHandler(fh);
+         logger.setUseParentHandlers(false);
+         return logger;
+      } catch (IOException e) {
+         e.printStackTrace();
+         return null;
+      }
    }
 
 }
