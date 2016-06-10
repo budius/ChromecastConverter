@@ -29,6 +29,10 @@ public interface Processor {
          return new Result(CODE_ABORT, message);
       }
 
+      public static Result abort() {
+         return new Result(CODE_ABORT, null);
+      }
+
       public static Result fail(String message) {
          return new Result(CODE_FAIL, message);
       }

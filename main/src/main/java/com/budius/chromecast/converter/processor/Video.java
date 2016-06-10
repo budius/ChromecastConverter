@@ -30,8 +30,8 @@ public class Video implements Processor {
 
       // check video stream is already in a good codec and profile
       if (GOOD_VIDEO_CODEC.equals(videoStream.getCodec_name())
-         && GOOD_VIDEO_PROFILE.equals(videoStream.getProfile())
-         && !job.settings.force) {
+            && GOOD_VIDEO_PROFILE.equals(videoStream.getProfile())
+            && !job.settings.force) {
          job.ffmpegCmd.add("copy");
          return Result.success();
       } else {
@@ -71,7 +71,7 @@ public class Video implements Processor {
          return false;
 
       if (GOOD_VIDEO_CODEC.equals(videoStream.getCodec_name())
-         && GOOD_VIDEO_PROFILE.equals(videoStream.getProfile())) {
+            && GOOD_VIDEO_PROFILE.equals(videoStream.getProfile())) {
          cmd.add("-vcodec");
          cmd.add("copy");
       } else {
@@ -138,12 +138,16 @@ public class Video implements Processor {
       // audio bitrate
       long abr;
       Stream audioStream = Utils.getStream(ffProbe, CODEC_TYPE_AUDIO);
-      String audioBitrate = audioStream.getBit_rate();
-      try {
-         abr = Long.parseLong(audioBitrate);
-      } catch (Exception e) {
-         // number format exception
-         abr = 96 * 1024; // 192k stereo
+      if (audioStream == null) {
+         abr = 0;
+      } else {
+         String audioBitrate = audioStream.getBit_rate();
+         try {
+            abr = Long.parseLong(audioBitrate);
+         } catch (Exception e) {
+            // number format exception
+            abr = 96 * 1024; // just a wild guess on some low-ish value
+         }
       }
 
       return fbr - abr;

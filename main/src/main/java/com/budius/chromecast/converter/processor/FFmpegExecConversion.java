@@ -11,16 +11,6 @@ public class FFmpegExecConversion implements Processor {
 
       String[] cmd = Utils.getArray(job.ffmpegCmd);
 
-      if (cmd == null || cmd.length == 0) {
-         return Result.fail("No FFMPEG command found");
-      }
-
-      if (Utils.cmdToString(cmd).contains("-c:v copy -c:a copy")
-         && job.ffProbe.getFormat().getFilename().toLowerCase().endsWith(".mp4")
-         && job.ffProbe.getFormat().getFormat_name().toLowerCase().contains("mp4")) {
-         return Result.abort("No conversion needed");
-      }
-
       // execute video conversion
       if (!job.outputFolder.exists()) {
          job.outputFolder.mkdirs();
