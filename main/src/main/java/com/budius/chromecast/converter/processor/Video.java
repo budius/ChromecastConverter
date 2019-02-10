@@ -34,7 +34,29 @@ public class Video implements Processor {
             && !job.settings.force) {
          job.ffmpegCmd.add("copy");
          return Result.success();
-      } else {
+      }
+
+      // executing on Raspberry Pi
+      else if (job.settings.pi) {
+
+         // check ffmpeg supports h264_omx
+         if (!Utils.supportsCodec("h264_omx")) {
+            return Result.fail("No suitable video encoder available");
+         }
+
+         job.ffmpegCmd.add("h264_omx");
+         String videoBitRate = getVideoBitrate(job.ffProbe);
+         if (videoBitRate != null) {
+            job.ffmpegCmd.add("-b:v");
+            job.ffmpegCmd.add(videoBitRate);
+         }
+
+         return Result.success();
+
+      }
+
+      // execution on PC
+      else {
 
          // check ffmpeg supports libx264
          if (!Utils.supportsCodec("libx264")) {

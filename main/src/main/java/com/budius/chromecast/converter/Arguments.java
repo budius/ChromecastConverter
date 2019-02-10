@@ -28,6 +28,7 @@ public class Arguments {
       OPTIONS.addOption("s", "speed", true, "Speed: " + fromArray(Settings.SPEED) + ". Default is slow (optional)");
       OPTIONS.addOption("d", "delete", false, "Delete the original file upon successful conversion");
       OPTIONS.addOption("f", "force", false, "Force conversion (even if input codecs are correct)");
+      OPTIONS.addOption("p", "pi", false, "Uses h264_omx to allow conversion on the Raspberry Pi");
       OPTIONS.addOption(null, "DEBUG", false, "Debug mode with more logs");
    }
 
@@ -51,6 +52,10 @@ public class Arguments {
          String outputString = cmd.getOptionValue("o", null);
          String qualityString = cmd.getOptionValue("q", Settings.DEFAULT_QUALITY);
          String speedString = cmd.getOptionValue("s", Settings.DEFAULT_SPEED);
+         boolean delete = cmd.hasOption("d");
+         boolean force = cmd.hasOption("f");
+         boolean pi = cmd.hasOption("p");
+         debug = cmd.hasOption("DEBUG");
 
          // test valid input
          if (inputString == null) {
@@ -103,10 +108,7 @@ public class Arguments {
             return;
          }
 
-         settings = new Settings(inputFile, outputFile, speedString, quality,
-            cmd.hasOption("d"),
-            cmd.hasOption("f"));
-         debug = cmd.hasOption("DEBUG");
+         settings = new Settings(inputFile, outputFile, speedString, quality, delete, force, pi);
 
       } catch (ParseException e) {
          e.printStackTrace();
