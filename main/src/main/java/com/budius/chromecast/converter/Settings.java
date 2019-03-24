@@ -11,23 +11,23 @@ public class Settings {
 
 
    public static final List<String> SPEED = Arrays.asList(
-      "ultrafast",
-      "superfast",
-      "veryfast",
-      "faster",
-      "fast",
-      "medium",
-      "slow",
-      "slower",
-      "veryslow"
+         "ultrafast",
+         "superfast",
+         "veryfast",
+         "faster",
+         "fast",
+         "medium",
+         "slow",
+         "slower",
+         "veryslow"
    );
 
    public static final List<String> QUALITY = Arrays.asList(
-      "high", "normal", "low"
+         "high", "normal", "low"
    );
 
    public static final int[] I_ARRAY_QUALITY = {
-      18, 23, 26,};
+         18, 23, 26,};
 
    public final File input;
    public final File output;
@@ -35,20 +35,22 @@ public class Settings {
    public final int quality;
    public final boolean delete;
    public final boolean force;
+   public final boolean pi;
 
    public static final String DEFAULT_SPEED = "slow";
    public static final String DEFAULT_QUALITY = "high";
 
-   public Settings(File input, File output, String speed, int quality, boolean delete, boolean force) {
+   public Settings(File input, File output, String speed, int quality, boolean delete, boolean force, boolean pi) {
       this.input = input;
       this.output = output;
       this.speed = speed;
       this.quality = quality;
       this.delete = delete;
       this.force = force;
+      this.pi = pi;
    }
 
    public Settings copy(File input) {
-      return new Settings(input, this.output, this.speed, this.quality, this.delete, this.force);
+      return new Settings(input, this.output, this.speed, this.quality, this.delete, this.force, this.pi);
    }
 }

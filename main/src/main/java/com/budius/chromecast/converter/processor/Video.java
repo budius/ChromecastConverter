@@ -34,7 +34,29 @@ public class Video implements Processor {
             && !job.settings.force) {
          job.ffmpegCmd.add("copy");
          return Result.success();
-      } else {
+      }
+
+      // executing on Raspberry Pi
+      else if (job.settings.pi) {
+
+         // check ffmpeg supports h264_omx
+         if (!Utils.supportsCodec("h264_omx")) {
+            return Result.fail("No suitable video encoder available");
+         }
+
+         job.ffmpegCmd.add("h264_omx");
+         String videoBitRate = getVideoBitrate(job.ffProbe);
+         if (videoBitRate != null) {
+            job.ffmpegCmd.add("-b:v");
+            job.ffmpegCmd.add(videoBitRate);
+         }
+
+         return Result.success();
+
+      }
+
+      // execution on PC
+      else {
 
          // check ffmpeg supports libx264
          if (!Utils.supportsCodec("libx264")) {
@@ -105,19 +127,27 @@ public class Video implements Processor {
 
    private static String getVideoBitrate(Probe ffProbe) {
 
-        /*
-        I found cases where mpeg1 streams return the uncompressed bitrate, rendering absurdly high bit rates.
-        So we're getting the smaller from the two
-        */
 
       long br_stream = getVideoBitrateBasedOnVideoStreamBitRate(ffProbe);
       long br_file = getVideoBitrateBasedOnFileBitrate(ffProbe);
-      long br = br_file > br_stream ? br_stream : br_file;
 
-      if (br <= 0)
-         return null;
-      else
+      if (br_stream > 0 && br_file > 0) {
+         // I found cases where mpeg1 streams return the uncompressed bitrate
+         // rendering absurdly high bit rates.
+         // So we're getting the smaller from the two
+         long br = br_file > br_stream ? br_stream : br_file;
          return Long.toString(br);
+      }
+
+      if (br_stream > 0) {
+         return Long.toString(br_stream);
+      }
+
+      if (br_file > 0) {
+         return Long.toString(br_file);
+      }
+
+      return null;
    }
 
    private static long getVideoBitrateBasedOnFileBitrate(Probe ffProbe) {
