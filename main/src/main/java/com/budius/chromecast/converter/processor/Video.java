@@ -127,19 +127,27 @@ public class Video implements Processor {
 
    private static String getVideoBitrate(Probe ffProbe) {
 
-        /*
-        I found cases where mpeg1 streams return the uncompressed bitrate, rendering absurdly high bit rates.
-        So we're getting the smaller from the two
-        */
 
       long br_stream = getVideoBitrateBasedOnVideoStreamBitRate(ffProbe);
       long br_file = getVideoBitrateBasedOnFileBitrate(ffProbe);
-      long br = br_file > br_stream ? br_stream : br_file;
 
-      if (br <= 0)
-         return null;
-      else
+      if (br_stream > 0 && br_file > 0) {
+         // I found cases where mpeg1 streams return the uncompressed bitrate
+         // rendering absurdly high bit rates.
+         // So we're getting the smaller from the two
+         long br = br_file > br_stream ? br_stream : br_file;
          return Long.toString(br);
+      }
+
+      if (br_stream > 0) {
+         return Long.toString(br_stream);
+      }
+
+      if (br_file > 0) {
+         return Long.toString(br_file);
+      }
+
+      return null;
    }
 
    private static long getVideoBitrateBasedOnFileBitrate(Probe ffProbe) {
