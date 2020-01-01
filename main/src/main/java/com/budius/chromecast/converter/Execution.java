@@ -64,33 +64,43 @@ public class Execution implements Runnable {
    private void executeFile(Settings settings) {
 
       Job job = new Job(settings, baseFolder);
-      List<Item> processors = Arrays.asList(
+      List<Item> processors;
 
-         // Probe the input file and extract information
-         new Item("FFProbe", new FFProbe()),
+      if (settings.onlySubtitles) {
+         processors = Arrays.asList(
+               new Item("FFProbe", new FFProbe()),
+               new Item("Subtitles", new Subtitles()),
+               new Item("Subtitles", new FFmpegExecSubtitles())
+         );
+      } else {
+         processors = Arrays.asList(
 
-         // Build FFMPEG command in parts
-         new Item("CmdStart", new FFmpegCmdStart()),
-         new Item("Video", new Video()),
-         new Item("Audio", new Audio()),
-         new Item("CmdEnd", new FFmpegCmdEnd()),
+               // Probe the input file and extract information
+               new Item("FFProbe", new FFProbe()),
 
-         // Build Subtitle extraction commands
-         new Item("Subtitles", new Subtitles()),
+               // Build FFMPEG command in parts
+               new Item("CmdStart", new FFmpegCmdStart()),
+               new Item("Video", new Video()),
+               new Item("Audio", new Audio()),
+               new Item("CmdEnd", new FFmpegCmdEnd()),
 
-         // Checks if any conversion is necessary and process the `move` flag
-         new Item("CheckConversionCmd", new CheckConversionCmd()),
+               // Build Subtitle extraction commands
+               new Item("Subtitles", new Subtitles()),
 
-         // Execute FFMPEG commands
-         new Item("Conversion", new FFmpegExecConversion()),
-         new Item("Subtitles", new FFmpegExecSubtitles()),
+               // Checks if any conversion is necessary and process the `move` flag
+               new Item("CheckConversionCmd", new CheckConversionCmd()),
 
-         // delete original
-         new Item("DeleteOriginal", new DeleteOriginal()),
+               // Execute FFMPEG commands
+               new Item("Conversion", new FFmpegExecConversion()),
+               new Item("Subtitles", new FFmpegExecSubtitles()),
 
-         // Rename temp file
-         new Item("RenameTempFile", new RenameTempFile())
-      );
+               // delete original
+               new Item("DeleteOriginal", new DeleteOriginal()),
+
+               // Rename temp file
+               new Item("RenameTempFile", new RenameTempFile())
+         );
+      }
 
       // process all the processors and log any errors
       ExecutionLoop:
@@ -118,7 +128,7 @@ public class Execution implements Runnable {
    // Filters
    // =========================================================================================================
    private static final List<String> VIDEO_EXTENSION =
-      Arrays.asList("mp4", "mkv", "avi", "mpeg", "mpg", "mpe", "mov", "qt", "asf", "flv", "wmv", "m1v", "m2v", "3gp");
+         Arrays.asList("mp4", "mkv", "avi", "mpeg", "mpg", "mpe", "mov", "qt", "asf", "flv", "wmv", "m1v", "m2v", "3gp");
 
    private static final FileFilter videoFilesFilter = new FileFilter() {
       @Override

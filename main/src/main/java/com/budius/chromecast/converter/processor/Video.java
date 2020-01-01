@@ -127,9 +127,14 @@ public class Video implements Processor {
 
    private static String getVideoBitrate(Probe ffProbe) {
 
+      Stream videoStream = Utils.getStream(ffProbe, CODEC_TYPE_VIDEO);
+      boolean isX265 = videoStream != null &&
+            videoStream.getCodec_long_name() != null &&
+            videoStream.getCodec_long_name().contains("265");
+      float multiply = isX265 ? 2.4f : 1;
 
-      long br_stream = getVideoBitrateBasedOnVideoStreamBitRate(ffProbe);
-      long br_file = getVideoBitrateBasedOnFileBitrate(ffProbe);
+      long br_stream = (long) (multiply * getVideoBitrateBasedOnVideoStreamBitRate(ffProbe));
+      long br_file = (long) (multiply * getVideoBitrateBasedOnFileBitrate(ffProbe));
 
       if (br_stream > 0 && br_file > 0) {
          // I found cases where mpeg1 streams return the uncompressed bitrate

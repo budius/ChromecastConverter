@@ -36,11 +36,12 @@ public class Settings {
    public final boolean delete;
    public final boolean force;
    public final boolean pi;
+   public final boolean onlySubtitles;
 
    public static final String DEFAULT_SPEED = "slow";
    public static final String DEFAULT_QUALITY = "high";
 
-   public Settings(File input, File output, String speed, int quality, boolean delete, boolean force, boolean pi) {
+   public Settings(File input, File output, String speed, int quality, boolean delete, boolean force, boolean pi, boolean onlySubtitles) {
       this.input = input;
       this.output = output;
       this.speed = speed;
@@ -48,9 +49,10 @@ public class Settings {
       this.delete = delete;
       this.force = force;
       this.pi = pi;
+      this.onlySubtitles = onlySubtitles;
    }
 
    public Settings copy(File input) {
-      return new Settings(input, this.output, this.speed, this.quality, this.delete, this.force, this.pi);
+      return new Settings(input, this.output, this.speed, this.quality, this.delete, this.force, this.pi, this.onlySubtitles);
    }
 }
