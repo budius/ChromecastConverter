@@ -30,6 +30,7 @@ public class Arguments {
       OPTIONS.addOption("f", "force", false, "Force conversion (even if input codecs are correct)");
       OPTIONS.addOption("p", "pi", false, "Uses h264_omx to allow conversion on the Raspberry Pi");
       OPTIONS.addOption(null, "DEBUG", false, "Debug mode with more logs");
+      OPTIONS.addOption(null, "onlySubtitles", false, "Do no convert anything, simply extract subtitles");
    }
 
    private Settings settings;
@@ -55,6 +56,7 @@ public class Arguments {
          boolean delete = cmd.hasOption("d");
          boolean force = cmd.hasOption("f");
          boolean pi = cmd.hasOption("p");
+         boolean onlySubtitles = cmd.hasOption("onlySubtitles");
          debug = cmd.hasOption("DEBUG");
 
          // test valid input
@@ -108,7 +110,7 @@ public class Arguments {
             return;
          }
 
-         settings = new Settings(inputFile, outputFile, speedString, quality, delete, force, pi);
+         settings = new Settings(inputFile, outputFile, speedString, quality, delete, force, pi, onlySubtitles);
 
       } catch (ParseException e) {
          e.printStackTrace();
