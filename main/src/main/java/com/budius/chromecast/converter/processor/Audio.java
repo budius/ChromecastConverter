@@ -166,9 +166,9 @@ public class Audio implements Processor {
          if (quality <= 20) {
             this.quality = Q_LOW;
          } else if (quality <= 25) {
-            this.quality = Q_LOW;
+            this.quality = Q_MED;
          } else {
-            this.quality = Q_LOW;
+            this.quality = Q_HIGH;
          }
       }
 
