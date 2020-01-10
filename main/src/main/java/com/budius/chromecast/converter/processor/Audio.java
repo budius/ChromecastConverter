@@ -28,7 +28,9 @@ public class Audio implements Processor {
       String codecName = audioStream.getCodec_name().toLowerCase();
 
       // no need to recode anything, just copy the audio stream
-      if (GOOD_CODECS.contains(codecName) && !job.settings.force) {
+      if (GOOD_CODECS.contains(codecName) &&
+            audioStream.getChannels() <= 2 &&
+            !job.settings.force) {
          job.ffmpegCmd.add("copy");
          return Result.success();
       }
@@ -46,6 +48,8 @@ public class Audio implements Processor {
          if (codec.isSupported()) {
             job.ffmpegCmd.add(codec.libName);
             codec.addCmd(job.ffmpegCmd, audioStream);
+            job.ffmpegCmd.add("-ac");
+            job.ffmpegCmd.add("2");
             return Result.success();
          }
       }
@@ -123,28 +127,9 @@ public class Audio implements Processor {
             default:
                val = 48;
          }
-         long bitrate = val * audioStream.getChannels() * 1000;
 
-         // apply maxBitrate based on percentage or original bitrate
-         // there's no need to "waste" bytes, case the original stream is low-quality
-         try {
-            float maxBitrateFactor;
-            switch (quality) {
-               case Q_HIGH:
-                  maxBitrateFactor = 1.25f;
-                  break;
-               case Q_MED:
-                  maxBitrateFactor = 1.15f;
-                  break;
-               case Q_LOW:
-               default:
-                  maxBitrateFactor = 1.05f;
-            }
-            long maxBitrate = (long) (maxBitrateFactor * Long.parseLong(audioStream.getBit_rate()));
-            if (bitrate > maxBitrate) {
-               bitrate = maxBitrate;
-            }
-         } catch (Exception e) { /* not-caring because maxBirate is just "good-to-have" and not mandatory */ }
+         long audioChannels = Math.min(2, audioStream.getChannels());
+         long bitrate = val * audioChannels * 1024;
 
          cmd.add(Long.toString(bitrate));
       }
