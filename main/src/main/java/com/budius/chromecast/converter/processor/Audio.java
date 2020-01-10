@@ -28,7 +28,9 @@ public class Audio implements Processor {
       String codecName = audioStream.getCodec_name().toLowerCase();
 
       // no need to recode anything, just copy the audio stream
-      if (GOOD_CODECS.contains(codecName) && !job.settings.force) {
+      if (GOOD_CODECS.contains(codecName) &&
+            audioStream.getChannels() <= 2 &&
+            !job.settings.force) {
          job.ffmpegCmd.add("copy");
          return Result.success();
       }
@@ -37,15 +39,17 @@ public class Audio implements Processor {
       // http://git.videolan.org/?p=ffmpeg.git;a=commit;h=d9791a8656b5580756d5b7ecc315057e8cd4255e
       // FFMPEG native AAC is the recommended way, AAC encoder
       List<Codec> codecs = Arrays.asList(
-         new AAC(job.settings.quality),
-         new LIBFDK_AAC(job.settings.quality), // non-free
-         new MP3(job.settings.quality)
+            new AAC(job.settings.quality),
+            new LIBFDK_AAC(job.settings.quality), // non-free
+            new MP3(job.settings.quality)
       );
 
       for (Codec codec : codecs) {
          if (codec.isSupported()) {
             job.ffmpegCmd.add(codec.libName);
             codec.addCmd(job.ffmpegCmd, audioStream);
+            job.ffmpegCmd.add("-ac");
+            job.ffmpegCmd.add("2");
             return Result.success();
          }
       }
@@ -123,30 +127,11 @@ public class Audio implements Processor {
             default:
                val = 48;
          }
-         long bitrate = val * audioStream.getChannels() * 1000;
 
-         // apply maxBitrate based on percentage or original bitrate
-         // there's no need to "waste" bytes, case the original stream is low-quality
-         try {
-            float maxBitrateFactor;
-            switch (quality) {
-               case Q_HIGH:
-                  maxBitrateFactor = 1.25f;
-                  break;
-               case Q_MED:
-                  maxBitrateFactor = 1.15f;
-                  break;
-               case Q_LOW:
-               default:
-                  maxBitrateFactor = 1.05f;
-            }
-            long maxBitrate = (long) (maxBitrateFactor * Long.parseLong(audioStream.getBit_rate()));
-            if (bitrate > maxBitrate) {
-               bitrate = maxBitrate;
-            }
-         } catch (Exception e) { /* not-caring because maxBirate is just "good-to-have" and not mandatory */ }
+         long audioChannels = Math.min(2, audioStream.getChannels());
+         long bitrate = val * audioChannels;
 
-         cmd.add(Long.toString(bitrate));
+         cmd.add(bitrate + "k");
       }
    }
 
@@ -166,9 +151,9 @@ public class Audio implements Processor {
          if (quality <= 20) {
             this.quality = Q_LOW;
          } else if (quality <= 25) {
-            this.quality = Q_LOW;
+            this.quality = Q_MED;
          } else {
-            this.quality = Q_LOW;
+            this.quality = Q_HIGH;
          }
       }
 
