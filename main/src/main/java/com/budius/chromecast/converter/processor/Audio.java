@@ -39,9 +39,9 @@ public class Audio implements Processor {
       // http://git.videolan.org/?p=ffmpeg.git;a=commit;h=d9791a8656b5580756d5b7ecc315057e8cd4255e
       // FFMPEG native AAC is the recommended way, AAC encoder
       List<Codec> codecs = Arrays.asList(
-         new AAC(job.settings.quality),
-         new LIBFDK_AAC(job.settings.quality), // non-free
-         new MP3(job.settings.quality)
+            new AAC(job.settings.quality),
+            new LIBFDK_AAC(job.settings.quality), // non-free
+            new MP3(job.settings.quality)
       );
 
       for (Codec codec : codecs) {
@@ -129,9 +129,9 @@ public class Audio implements Processor {
          }
 
          long audioChannels = Math.min(2, audioStream.getChannels());
-         long bitrate = val * audioChannels * 1024;
+         long bitrate = val * audioChannels;
 
-         cmd.add(Long.toString(bitrate));
+         cmd.add(bitrate + "k");
       }
    }
 
