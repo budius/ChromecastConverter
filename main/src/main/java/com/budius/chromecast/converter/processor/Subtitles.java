@@ -76,7 +76,9 @@ public class Subtitles implements Processor {
    static String disambiguation(SubtitlesMeta existing, SubtitlesMeta added) {
 
       // remove duplication from title
-      String posfix = added.title.replace(existing.title, "");
+      String posfix = existing.title != null ?
+            added.title.replace(existing.title, "") :
+            "";
       char[] posfixArray = posfix.toCharArray();
 
       // remove not allowed characters
