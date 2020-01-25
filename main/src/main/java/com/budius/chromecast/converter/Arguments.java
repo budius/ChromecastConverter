@@ -31,6 +31,7 @@ public class Arguments {
       OPTIONS.addOption("p", "pi", false, "Uses h264_omx to allow conversion on the Raspberry Pi");
       OPTIONS.addOption(null, "DEBUG", false, "Debug mode with more logs");
       OPTIONS.addOption(null, "onlySubtitles", false, "Do no convert anything, simply extract subtitles");
+      OPTIONS.addOption(null, "rawlogs", false, "Make the ffmpeg process output its raw log directly onto the console.");
    }
 
    private Settings settings;
@@ -108,6 +109,10 @@ public class Arguments {
          if (!Settings.SPEED.contains(speedString)) {
             System.out.println("Invalid speed argument");
             return;
+         }
+
+         if (cmd.hasOption("rawlogs")) {
+            RuntimeExec.RAW_LOG_FFMPEG_PROCESS = true;
          }
 
          settings = new Settings(inputFile, outputFile, speedString, quality, delete, force, pi, onlySubtitles);

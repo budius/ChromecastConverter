@@ -15,6 +15,8 @@ public class RuntimeExec {
    private Gobbler inputGobbler;
    private Gobbler errorGobbler;
 
+   public static boolean RAW_LOG_FFMPEG_PROCESS = false;
+
    public static final int LOG = 1;
    public static final int FFMPEG = 2; // Fancy log logic
    public static final int STRING_RESPONSE = 3;
@@ -47,33 +49,11 @@ public class RuntimeExec {
       long startTime = System.currentTimeMillis();
 
       try {
-         Runtime rt = Runtime.getRuntime();
-         Process p;
-         if (folder == null)
-            p = rt.exec(cmd);
-         else
-            p = rt.exec(cmd, null, folder);
 
-         StreamGobbler input = new StreamGobbler("input", p.getInputStream(), inputGobbler);
-         StreamGobbler error = new StreamGobbler("error", p.getErrorStream(), errorGobbler);
-
-         input.start();
-         error.start();
-
-         try {
-            int val = p.waitFor();
-            success = (val == 0);
-
-            input.join();
-            error.join();
-            p.destroy();
-
-            if (logType == FFMPEG) {
-               System.out.print("\n");
-            }
-
-         } catch (InterruptedException e) {
-            Log.d("InterruptedException. " + e.getMessage());
+         if (logType == FFMPEG && RAW_LOG_FFMPEG_PROCESS) {
+            success = rawLogExecution();
+         } else {
+            success = normalLogExecution();
          }
       } catch (IOException e) {
          Log.d("IOException. " + e.getMessage());
@@ -87,6 +67,53 @@ public class RuntimeExec {
       }
 
       return success;
+   }
+
+   private boolean normalLogExecution() throws IOException {
+      Runtime rt = Runtime.getRuntime();
+      Process p;
+      if (folder == null)
+         p = rt.exec(cmd);
+      else
+         p = rt.exec(cmd, null, folder);
+
+      StreamGobbler input = new StreamGobbler("input", p.getInputStream(), inputGobbler);
+      StreamGobbler error = new StreamGobbler("error", p.getErrorStream(), errorGobbler);
+
+      input.start();
+      error.start();
+
+      boolean success = false;
+      try {
+         int val = p.waitFor();
+         success = (val == 0);
+
+         input.join();
+         error.join();
+         p.destroy();
+
+         if (logType == FFMPEG) {
+            System.out.print("\n");
+         }
+
+      } catch (InterruptedException e) {
+         Log.d("InterruptedException. " + e.getMessage());
+      }
+      return success;
+   }
+
+   private boolean rawLogExecution() throws IOException {
+      ProcessBuilder builder = new ProcessBuilder(cmd).inheritIO();
+      if (folder != null) {
+         builder.directory(folder);
+      }
+      Process p = builder.start(); // may throw IOException
+      try {
+         return p.waitFor() == 0;
+      } catch (InterruptedException e) {
+         Log.d("InterruptedException. " + e.getMessage());
+         return false;
+      }
    }
 
    public String getResponse() {
