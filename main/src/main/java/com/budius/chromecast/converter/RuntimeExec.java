@@ -10,7 +10,7 @@ public class RuntimeExec {
 
    private final String[] cmd;
    private final File folder;
-   private int logType;
+   private final int logType;
 
    private Gobbler inputGobbler;
    private Gobbler errorGobbler;
@@ -33,7 +33,12 @@ public class RuntimeExec {
    public RuntimeExec(String[] cmd, File folder, int logType) {
       this.cmd = cmd;
       this.folder = folder;
-      this.logType = logType;
+
+      if (logType == FFMPEG && RAW_LOG_FFMPEG_PROCESS) {
+         this.logType = LOG;
+      } else {
+         this.logType = logType;
+      }
 
       inputGobbler = new Gobbler(logType);
       errorGobbler = new Gobbler(logType);
@@ -49,11 +54,33 @@ public class RuntimeExec {
       long startTime = System.currentTimeMillis();
 
       try {
+         Runtime rt = Runtime.getRuntime();
+         Process p;
+         if (folder == null)
+            p = rt.exec(cmd);
+         else
+            p = rt.exec(cmd, null, folder);
 
-         if (logType == FFMPEG && RAW_LOG_FFMPEG_PROCESS) {
-            success = rawLogExecution();
-         } else {
-            success = normalLogExecution();
+         StreamGobbler input = new StreamGobbler("input", p.getInputStream(), inputGobbler);
+         StreamGobbler error = new StreamGobbler("error", p.getErrorStream(), errorGobbler);
+
+         input.start();
+         error.start();
+
+         try {
+            int val = p.waitFor();
+            success = (val == 0);
+
+            input.join();
+            error.join();
+            p.destroy();
+
+            if (logType == FFMPEG) {
+               System.out.print("\n");
+            }
+
+         } catch (InterruptedException e) {
+            Log.d("InterruptedException. " + e.getMessage());
          }
       } catch (IOException e) {
          Log.d("IOException. " + e.getMessage());
@@ -67,53 +94,6 @@ public class RuntimeExec {
       }
 
       return success;
-   }
-
-   private boolean normalLogExecution() throws IOException {
-      Runtime rt = Runtime.getRuntime();
-      Process p;
-      if (folder == null)
-         p = rt.exec(cmd);
-      else
-         p = rt.exec(cmd, null, folder);
-
-      StreamGobbler input = new StreamGobbler("input", p.getInputStream(), inputGobbler);
-      StreamGobbler error = new StreamGobbler("error", p.getErrorStream(), errorGobbler);
-
-      input.start();
-      error.start();
-
-      boolean success = false;
-      try {
-         int val = p.waitFor();
-         success = (val == 0);
-
-         input.join();
-         error.join();
-         p.destroy();
-
-         if (logType == FFMPEG) {
-            System.out.print("\n");
-         }
-
-      } catch (InterruptedException e) {
-         Log.d("InterruptedException. " + e.getMessage());
-      }
-      return success;
-   }
-
-   private boolean rawLogExecution() throws IOException {
-      ProcessBuilder builder = new ProcessBuilder(cmd).inheritIO();
-      if (folder != null) {
-         builder.directory(folder);
-      }
-      Process p = builder.start(); // may throw IOException
-      try {
-         return p.waitFor() == 0;
-      } catch (InterruptedException e) {
-         Log.d("InterruptedException. " + e.getMessage());
-         return false;
-      }
    }
 
    public String getResponse() {

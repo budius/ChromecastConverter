@@ -7,7 +7,7 @@ import org.apache.commons.cli.HelpFormatter;
  */
 public class Main {
 
-   public static final String VERSION = "Chromecast Converter - V2.3.3";
+   public static final String VERSION = "Chromecast Converter - V2.3.4";
 
    public static void main(String[] args) {
 
