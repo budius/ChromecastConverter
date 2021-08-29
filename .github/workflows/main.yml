@@ -16,8 +16,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: dart-lang/setup-dart@v1
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install Dart SDK
+        uses: dart-lang/setup-dart@v1
         with:
           sdk: 2.12.1
           architecture: x64
@@ -27,3 +30,9 @@ jobs:
 
       - name: Compile the project
         run: dart compile exe -o chromecast_converter bin/ccc.dart
+
+      - name: Upload artifact
+      - uses: actions/upload-artifact@v2
+        with:
+          name: chromecast_converter
+          path: chromecast_converter
