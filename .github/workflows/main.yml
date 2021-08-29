@@ -25,5 +25,5 @@ jobs:
       - name: Install dependencies
         run: dart pub get
 
-      - name: Run a one-line script
+      - name: Compile the project
         run: dart compile exe -o chromecast_converter bin/ccc.dart
