@@ -14,9 +14,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        architecture: [ x64, arm ]
 
     steps:
       - name: Checkout code
@@ -26,7 +23,7 @@ jobs:
         uses: dart-lang/setup-dart@v1
         with:
           sdk: 2.12.1
-          architecture: ${{ matrix.architecture }}
+          architecture: x64
 
       - name: Install dependencies
         run: dart pub get
