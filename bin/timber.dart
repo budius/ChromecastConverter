@@ -34,7 +34,8 @@ abstract class Tree {
 }
 
 const String _FFMPEG_TAG = 'FFMPEG';
-const String _FFMPEG_START = 'frame=';
+const String _FFMPEG_CONV_START = 'frame=';
+const String _FFMPEG_SUBT_START = 'size=';
 
 class StdOutLogger extends Tree {
   @override
@@ -47,7 +48,9 @@ class StdOutLogger extends Tree {
 
   @override
   void i(String tag, String msg) {
-    if (tag == _FFMPEG_TAG && msg.startsWith(_FFMPEG_START)) {
+    if (tag == _FFMPEG_TAG &&
+        (msg.startsWith(_FFMPEG_CONV_START) ||
+            msg.startsWith(_FFMPEG_SUBT_START))) {
       if (lastMsgWasFfmpeg) {
         stdout.write(_CARRIAGE_RETURN);
         stdout.writeAll(List<String>.filled(lastFfmpegLength + 12, ' '));

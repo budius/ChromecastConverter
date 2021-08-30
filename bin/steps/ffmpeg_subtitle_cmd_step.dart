@@ -70,7 +70,7 @@ class SubtitleCmdStep extends Step {
     final String outputPath = job.output.path;
     final String subtitleFile = outputPath.replaceFirst(
         OUTPUT_EXTENSION,
-        '_${meta.language.toUpperCase()}.$_SUBT_EXT',
+        '_${meta.language.toUpperCase()}$_SUBT_EXT',
         outputPath.length - OUTPUT_EXTENSION.length);
 
     return <String>[
