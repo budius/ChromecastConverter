@@ -18,9 +18,8 @@ class Steps {
   static List<Step> extract(BatchSettings settings) {
     return <Step>[
       ProbeStep(),
-      for (Step s in subtitlesSteps(settings)) s,
-      if (!settings.onlySubtitles)
-        for (Step c in conversionSteps(settings)) c,
+      ...subtitlesSteps(settings),
+      if (!settings.onlySubtitles) ...conversionSteps(settings)
     ];
   }
 
