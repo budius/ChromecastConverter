@@ -13,7 +13,14 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+          - os: titan
+            arch: arm
 
     steps:
       - name: Checkout code
@@ -23,7 +30,7 @@ jobs:
         uses: dart-lang/setup-dart@v1
         with:
           sdk: 2.12.1
-          architecture: x64
+          architecture: ${{ matrix.arch }}
 
       - name: Install dependencies
         run: dart pub get
@@ -34,5 +41,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: chromecast_converter
+          name: chromecast_converter_${{ matrix.arch }}
           path: chromecast_converter
